@@ -1,0 +1,20 @@
+[project]
+name = "physics-simulation"
+version = "0.1.0"
+description = "A modern physics simulation using marimo and uv"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "marimo",
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["simulation"]
