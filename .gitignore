@@ -136,3 +136,4 @@ cython_debug/
 
 # marimo
 .marimo.toml
+__marimo__/
