@@ -4,7 +4,7 @@
 
 A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware), Infinite States (Software)"** — with a **Calibration Dashboard** that exposes the physics mapping classical FDTD parameters to continuous-variable (CV) quantum states.
 
-> **For Professors:** This project answers *"Did you calculate the actual squeezing parameter (r) based on the waveguide's material properties and geometry?"* — Yes. The calibration logic is transparent and interactive.
+✨ Computes the **actual squeezing parameter (*r*)** based on the waveguide's material properties and geometry. The calibration logic is **interactive and transparent**.
 
 ---
 
@@ -50,26 +50,60 @@ Three tabbed visualizations:
 
 ---
 
-## 🚀 How to Run
+## 🚀 How to Run the Simulation
 
-### Interactive Dashboard (Streamlit)
-```bash
-pip install -e .
-streamlit run src/quantum_optical_bus/calibration_app.py
-```
-Then open **http://localhost:8501** in your browser.
+### 🇺🇸 English
 
-### Marimo Notebook (Legacy)
-```bash
-pip install -e ".[full]"
-marimo edit src/quantum_optical_bus/app.py
-```
+1. **Install** the package:
+   ```bash
+   pip install -e .
+   ```
+2. **Launch** the Calibration Dashboard:
+   ```bash
+   streamlit run src/quantum_optical_bus/calibration_app.py
+   ```
+3. Open **http://localhost:8501** in your browser.
+4. Use the **sidebar sliders** to adjust pump power, phase, and loss — watch the quantum state update in real-time.
 
-### Generate Gallery Images
-```bash
-python scripts/generate_dashboard_gallery.py
-python scripts/generate_demo_gif.py
-```
+---
+
+### 🇯🇵 日本語 *(AI-generated translation)*
+
+1. パッケージを**インストール**します：
+   ```bash
+   pip install -e .
+   ```
+2. キャリブレーション・ダッシュボードを**起動**します：
+   ```bash
+   streamlit run src/quantum_optical_bus/calibration_app.py
+   ```
+3. ブラウザで **http://localhost:8501** を開きます。
+4. **サイドバーのスライダー**でポンプ出力・位相・損失を調整し、量子状態がリアルタイムで変化する様子を確認できます。
+
+---
+
+### 🇰🇷 한국어 *(AI 생성 번역)*
+
+1. 패키지를 **설치**합니다:
+   ```bash
+   pip install -e .
+   ```
+2. 캘리브레이션 대시보드를 **실행**합니다:
+   ```bash
+   streamlit run src/quantum_optical_bus/calibration_app.py
+   ```
+3. 브라우저에서 **http://localhost:8501** 을 엽니다.
+4. **사이드바 슬라이더**로 펌프 출력, 위상, 손실을 조정하면 양자 상태가 실시간으로 변화하는 것을 확인할 수 있습니다.
+
+---
+
+### Additional Commands
+
+| Task | Command |
+|------|------|
+| Legacy Marimo Notebook | `pip install -e ".[full]" && marimo edit src/quantum_optical_bus/app.py` |
+| Generate Gallery Images | `python scripts/generate_dashboard_gallery.py` |
+| Generate Demo GIF | `python scripts/generate_demo_gif.py` |
 
 ---
 
