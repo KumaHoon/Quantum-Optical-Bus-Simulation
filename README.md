@@ -1,64 +1,122 @@
-# Quantum Optical Bus Simulation
+# Quantum Optical Bus — Calibration Dashboard
 
-A hybrid quantum-classical simulation demonstrating the concept of **"One Waveguide (Hardware), Infinite States (Software)"**.
+[![CI](https://github.com/KumaHoon/physics_simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/KumaHoon/physics_simulation/actions/workflows/ci.yml)
 
-This project implements a **Time-Division Multiplexed (TDM) Optical Bus** where dynamic quantum states are generated on a fixed Lithium Niobate (LN) waveguide using [Marimo](https://marimo.io) and [Strawberry Fields](https://strawberryfields.ai/).
+A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware), Infinite States (Software)"** — with a **Calibration Dashboard** that exposes the physics mapping classical FDTD parameters to continuous-variable (CV) quantum states.
 
-## Key Features
-
-- **Hardware Layer (Meep)**: Physics-based simulation of an LN Ridge Waveguide (1550nm).
-- **Interface Layer**: Maps physical pump power to quantum squeezing parameters.
-- **Application Layer (Strawberry Fields)**: Visualizes dynamic Time-bin encoding (Wigner Functions).
-- **Reactive UI**: Control Power and Phase for 4 independent time-bins in real-time.
+> **For Professors:** This project answers *"Did you calculate the actual squeezing parameter (r) based on the waveguide's material properties and geometry?"* — Yes. The calibration logic is transparent and interactive.
 
 ---
 
-## 📸 Simulation Results
+## 🎬 Live Demo
 
-The following results demonstrate the system's capability to encode diverse quantum information on the same fixed hardware.
+The dashboard sweeps pump power from 0 → 400 mW, showing the Wigner function evolving from vacuum (circular) to a squeezed state (elliptical) in real-time:
 
-### 1. Baseline System Check (Vacuum)
-**Scenario**: Pump Power = 0mW.
-**Insight**: The bus transmits pure vacuum noise. The hardware is active but the signal is null.
-![Baseline Vacuum](assets/result_vacuum.png)
+![Demo: Power Sweep](assets/demo_power_sweep.gif)
 
-### 2. Orthogonal Information Encoding
-**Scenario**: Bin 0 (Amplitude Squeezed) vs Bin 1 (Phase Squeezed).
-**Insight**: Demonstrates **Time-bin Encoding**. We encode completely orthogonal quantum states in adjacent time slots using the same physical device.
-![Orthogonal Encoding](assets/result_encoding.png)
+---
 
-### 3. Analog Quantum Control (Gradient)
-**Scenario**: Power gradient (0mW $\to$ 90mW).
-**Insight**: The system supports **Continuous Variable (CV)** quantum information processing (Analog control), not just discrete bits.
-![Analog Gradient](assets/result_gradient.png)
+## 🔬 Calibration Dashboard
+
+The dashboard follows a three-phase flow: **Hardware → Calibration → Quantum Result**.
+
+### Phase 1 · The Device (LN Ridge Waveguide)
+A Lithium Niobate waveguide at 1550 nm simulated via Meep FDTD (falls back to analytical Gaussian mode).
+
+### Phase 2 · The Calibration Bridge
+The core of the presentation — live LaTeX formulas showing:
+- **Squeezing parameter:** $r = \eta \sqrt{P}$
+- **Squeezing level:** $-10\log_{10}(e^{-2r})$ dB
+- Interactive calibration curve with current operating point
+
+### Phase 3 · Quantum Result
+Three tabbed visualizations:
+- **Wigner Function** — contour plot (becomes "fuzzier" with loss → decoherence)
+- **Photon Number Distribution** — even-photon pairing from squeezed vacuum
+- **Noise Variance** — squeezed/anti-squeezed quadratures vs shot noise limit
+
+---
+
+## 📸 Scenario Gallery
+
+### 1. Baseline — Vacuum State (P = 0 mW)
+![Vacuum Baseline](assets/dashboard_vacuum.png)
+
+### 2. Squeezed State (P = 200 mW)
+![Calibration + Squeezing](assets/dashboard_calibration.png)
+
+### 3. Decoherence — Pure vs Lossy
+![Decoherence Comparison](assets/dashboard_decoherence.png)
 
 ---
 
 ## 🚀 How to Run
 
-1.  **Install Dependencies**:
-    ```bash
-    # Using uv (recommended)
-    uv pip install -e .
-    
-    # Or standard pip
-    pip install -e .
-    ```
+### Interactive Dashboard (Streamlit)
+```bash
+pip install -e .
+streamlit run src/quantum_optical_bus/calibration_app.py
+```
+Then open **http://localhost:8501** in your browser.
 
-2.  **Run the Simulation**:
-    ```bash
-    marimo edit src/quantum_optical_bus/app.py
-    ```
-    This will open the interactive dashboard in your browser.
+### Marimo Notebook (Legacy)
+```bash
+pip install -e ".[full]"
+marimo edit src/quantum_optical_bus/app.py
+```
 
-## Project Structure
+### Generate Gallery Images
+```bash
+python scripts/generate_dashboard_gallery.py
+python scripts/generate_demo_gif.py
+```
 
-- `src/quantum_optical_bus/app.py`: Marimo notebook (thin controller).
-- `src/quantum_optical_bus/compat.py`: Dependency compatibility patches.
-- `src/quantum_optical_bus/hardware.py`: **Layer 1** — LN Ridge Waveguide simulation (Meep).
-- `src/quantum_optical_bus/interface.py`: **Layer 2** — Pump power → squeezing mapping.
-- `src/quantum_optical_bus/application.py`: **Layer 3** — Quantum Bus model (Strawberry Fields).
-- `src/quantum_optical_bus/visualization.py`: Matplotlib plotting (BusVisualizer).
-- `scripts/generate_gallery.py`: Script to generate the result images.
-- `src/quantum_optical_bus/legacy_simulation.py`: (Legacy) Basic physics simulation.
+---
 
+## 🏗️ Architecture
+
+```
+Input (Physics)  →  Calibration (Bridge)  →  Output (Quantum)
+   Meep/FDTD           r = η√P              Strawberry Fields
+```
+
+| Layer | File | Responsibility |
+|-------|------|----------------|
+| **Hardware** | `hardware.py` | LN Ridge Waveguide mode simulation (Meep / mock) |
+| **Interface** | `interface.py` | Pump power → squeezing parameter mapping |
+| **Application** | `application.py` | Quantum Bus model (Strawberry Fields) |
+| **Visualization** | `visualization.py` | Matplotlib plotting (BusVisualizer) |
+| **Dashboard** | `calibration_app.py` | Streamlit presentation UI |
+
+---
+
+## 🧪 Testing & CI
+
+Tests run on **Ubuntu, Windows, and macOS** via GitHub Actions:
+
+```bash
+pip install -e ".[test]"
+pytest tests/ -v
+```
+
+---
+
+## 📁 Project Structure
+
+```
+├── .github/workflows/ci.yml         # CI: Ubuntu / Windows / macOS
+├── src/quantum_optical_bus/
+│   ├── calibration_app.py            # Streamlit Calibration Dashboard
+│   ├── app.py                        # Marimo notebook (legacy UI)
+│   ├── hardware.py                   # Layer 1 — Meep / analytical mock
+│   ├── interface.py                  # Layer 2 — Power → Squeezing
+│   ├── application.py                # Layer 3 — Strawberry Fields
+│   ├── visualization.py              # Matplotlib BusVisualizer
+│   └── compat.py                     # Dependency patches
+├── tests/test_core.py                # Pytest suite (11 tests)
+├── scripts/
+│   ├── generate_gallery.py           # Original gallery images
+│   ├── generate_dashboard_gallery.py # Dashboard scenario images
+│   └── generate_demo_gif.py          # Animated demo GIF
+└── assets/                           # Generated images & demo
+```
