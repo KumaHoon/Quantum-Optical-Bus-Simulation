@@ -31,7 +31,8 @@ jobs:
           python -m pip install -e ".[test]"
 
       - name: Verify package import
-        run: python -c "from quantum_optical_bus import calculate_squeezing; print('OK: r =', calculate_squeezing(100))"
+        run: |
+          python -c "from quantum_optical_bus import calculate_squeezing; print('OK r =', calculate_squeezing(100))"
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short
