@@ -14,8 +14,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Meep requires conda or Linux; marimo is only needed for the notebook UI
-full = ["meep", "marimo"]
+# Meep requires conda or Linux
+full = ["meep"]
 test = ["pytest"]
 
 [build-system]

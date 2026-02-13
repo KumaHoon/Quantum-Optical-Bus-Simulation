@@ -104,9 +104,8 @@ Three tabbed visualizations:
 
 | Task | Command |
 |------|------|
-| Legacy Marimo Notebook | `pip install -e ".[full]" && marimo edit src/quantum_optical_bus/app.py` |
 | Generate Gallery Images | `python scripts/generate_dashboard_gallery.py` |
-| Generate Demo GIF | `python scripts/generate_demo_gif.py` |
+| Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
 
 ---
 
@@ -121,9 +120,8 @@ Input (Physics)  →  Calibration (Bridge)  →  Output (Quantum)
 |-------|------|----------------|
 | **Hardware** | `hardware.py` | LN Ridge Waveguide mode simulation (Meep / mock) |
 | **Interface** | `interface.py` | Pump power → squeezing parameter mapping |
-| **Application** | `application.py` | Quantum Bus model (Strawberry Fields) |
-| **Visualization** | `visualization.py` | Matplotlib plotting (BusVisualizer) |
-| **Dashboard** | `calibration_app.py` | Streamlit presentation UI |
+| **Compat** | `compat.py` | Dependency patches (pkg_resources, scipy) |
+| **Dashboard** | `calibration_app.py` | Streamlit calibration UI + quantum simulation |
 
 ---
 
@@ -190,19 +188,16 @@ pytest tests/ -v
 ## 📁 Project Structure
 
 ```
-├── .github/workflows/ci.yml         # CI: Ubuntu / Windows / macOS
+├── .github/workflows/ci.yml           # CI: Ubuntu / Windows / macOS
 ├── src/quantum_optical_bus/
-│   ├── calibration_app.py            # Streamlit Calibration Dashboard
-│   ├── app.py                        # Marimo notebook (legacy UI)
-│   ├── hardware.py                   # Layer 1 — Meep / analytical mock
-│   ├── interface.py                  # Layer 2 — Power → Squeezing
-│   ├── application.py                # Layer 3 — Strawberry Fields
-│   ├── visualization.py              # Matplotlib BusVisualizer
-│   └── compat.py                     # Dependency patches
-├── tests/test_core.py                # Pytest suite (11 tests)
+│   ├── calibration_app.py              # Streamlit Calibration Dashboard
+│   ├── hardware.py                     # Meep / analytical mock
+│   ├── interface.py                    # Power → Squeezing mapping
+│   └── compat.py                       # Dependency patches
+├── tests/test_core.py                  # Pytest suite (13 tests)
 ├── scripts/
-│   ├── generate_gallery.py           # Original gallery images
-│   ├── generate_dashboard_gallery.py # Dashboard scenario images
-│   └── generate_demo_gif.py          # Animated demo GIF
-└── assets/                           # Generated images & demo
+│   ├── generate_calibration_demo.py    # Animated demo GIF
+│   └── generate_dashboard_gallery.py   # Dashboard scenario images
+└── assets/                             # Generated images & demo
 ```
+

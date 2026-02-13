@@ -5,6 +5,8 @@ These tests verify the core physics logic works cross-platform
 without requiring Meep or Marimo.
 """
 
+import quantum_optical_bus.compat  # noqa: F401  — must precede SF imports
+
 import numpy as np
 import pytest
 
@@ -59,29 +61,37 @@ class TestHardwareSimulation:
         assert mode_area > 0
 
 
-# ── Application Layer (Strawberry Fields) ────────────────────────
+# ── Quantum Simulation (Strawberry Fields) ───────────────────────
 
-class TestQuantumBusModel:
+class TestQuantumSimulation:
+    """Verify core quantum simulation properties using SF directly."""
+
+    @staticmethod
+    def _wigner(r: float, theta: float, grid_points: int = 50):
+        """Run a single-mode Gaussian circuit and return Wigner + grid."""
+        import strawberryfields as sf
+        from strawberryfields.ops import Sgate, Rgate
+
+        xvec = np.linspace(-4.0, 4.0, grid_points)
+        prog = sf.Program(1)
+        with prog.context as q:
+            if r > 0:
+                Sgate(r) | q[0]
+            if theta != 0:
+                Rgate(theta) | q[0]
+        state = sf.Engine("gaussian").run(prog).state
+        W = state.wigner(0, xvec, xvec)
+        return W, xvec
+
     def test_vacuum_wigner_is_symmetric(self):
-        from quantum_optical_bus.application import QuantumBusModel
-
-        model = QuantumBusModel(num_bins=1)
-        wigner_data, xvec = model.run_simulation([0.0], [0.0], grid_points=50)
-
-        W, r, theta = wigner_data[0]
-        assert r == 0.0
+        W, _ = self._wigner(r=0.0, theta=0.0)
         # Vacuum Wigner should be symmetric: W(x,p) ≈ W(-x,-p)
         assert np.allclose(W, W[::-1, ::-1], atol=1e-6)
 
     def test_squeezed_state_is_non_vacuum(self):
-        from quantum_optical_bus.application import QuantumBusModel
-
-        model = QuantumBusModel(num_bins=1)
-        wd_vac, xvec = model.run_simulation([0.0], [0.0], grid_points=50)
-        wd_sq, _ = model.run_simulation([100.0], [0.0], grid_points=50)
-
-        W_vac = wd_vac[0][0]
-        W_sq = wd_sq[0][0]
+        W_vac, _ = self._wigner(r=0.0, theta=0.0)
+        r = calculate_squeezing(100.0)  # r ≈ 1.0
+        W_sq, _ = self._wigner(r=r, theta=0.0)
         # Squeezed Wigner should differ from vacuum
         assert not np.allclose(W_vac, W_sq, atol=1e-3)
 
