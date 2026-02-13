@@ -10,12 +10,12 @@ A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware),
 
 ## 🎬 Live Demo
 
-The dashboard sweeps pump power from 0 → 200 mW (squeezed ellipse forms), then increases propagation loss from 0 → 2 dB (decoherence restores the circular vacuum shape):
+The dashboard sweeps pump power from 0 → 200 mW (squeezed ellipse forms), then increases propagation loss from 0 → 2 dB (decoherence restores the circular vacuum shape). **Loss does not change intrinsic *r*; it reduces observed squeezing (post-loss).**
 
 ![Demo: Calibration](assets/calibration_demo.gif)
 
 > **Figure 1: Real-time Calibration Simulation.**
-> This simulation demonstrates the mapping from classical control parameters (Pump Power) to quantum metrics (Squeezing Level). It visually verifies the $r \propto \sqrt{P}$ relationship and the decoherence effects caused by propagation loss, ensuring the simulation aligns with experimental LN waveguide characteristics.
+> The GIF shows both **intrinsic squeezing (pre-loss)** — constant for a given pump power — and **observed squeezing (post-loss)** — which decreases as propagation loss increases. This visually verifies the $r \propto \sqrt{P}$ mapping and the decoherence effect of the pure-loss channel.
 
 ---
 
@@ -29,7 +29,8 @@ A Lithium Niobate waveguide at 1550 nm simulated via Meep FDTD (falls back to an
 ### Phase 2 · The Calibration Bridge
 The core of the presentation — live LaTeX formulas showing:
 - **Squeezing parameter:** $r = \eta \sqrt{P}$
-- **Squeezing level:** $-10\log_{10}(e^{-2r})$ dB
+- **Intrinsic squeezing (pre-loss):** $-10\log_{10}(e^{-2r})$ dB — depends only on pump power
+- **Observed squeezing (post-loss):** from output covariance eigenvalues after the loss channel
 - Interactive calibration curve with current operating point
 
 ### Phase 3 · Quantum Result

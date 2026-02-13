@@ -219,12 +219,10 @@ col_physics, col_formula = st.columns(2)
 with col_physics:
     st.markdown(
         r"""
-        The coupling coefficient $(\eta)$ is currently a
-        **phenomenological placeholder** ($\eta = 0.1$, so that
-        100 mW $\to$ $r \approx 1$).  In a production model it would be
-        derived from the mode overlap integral, $\chi^{(2)}$
-        non-linearity, and waveguide geometry (Meep hook — not yet
-        wired).
+        The coupling coefficient $(\eta)$ is a
+        **phenomenological placeholder** ($\eta = 0.1$, tuned so that
+        100 mW $\to$ $r \approx 1$).  It is **not** derived from
+        physical parameters in the current version.
 
         The squeezing parameter scales with the **square root
         of the pump power** — a direct consequence of the parametric
@@ -232,8 +230,10 @@ with col_physics:
 
         $$\hat{H}_{\text{int}} \;\propto\; \chi^{(2)}\,\hat{a}^2 + \text{h.c.}$$
 
-        Future work: replace $\eta$ with a value computed from the
-        FDTD mode profile and material parameters.
+        **Roadmap:** replace $\eta$ with a value computed from
+        the FDTD mode overlap integral, $\chi^{(2)}$ nonlinearity,
+        and waveguide geometry (Meep hook / overlap integral pipeline
+        — not yet wired).
         """
     )
 

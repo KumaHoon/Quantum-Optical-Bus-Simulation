@@ -68,7 +68,7 @@ def _dark_style():
 
 
 def _run_quantum(r, theta, eta_loss):
-    """Single-mode Gaussian sim → Wigner, mean_photon, var_x, var_p."""
+    """Single-mode Gaussian sim → Wigner, mean_photon, var_x, var_p, observed_sq_db."""
     prog = sf.Program(1)
     with prog.context as q:
         if r > 0:
@@ -82,7 +82,14 @@ def _run_quantum(r, theta, eta_loss):
     W = state.wigner(0, xvec, xvec)
     mean_n = state.mean_photon(0)[0]
     cov = state.cov()
-    return W, mean_n, cov[0, 0] / 2, cov[1, 1] / 2
+    var_x = cov[0, 0] / 2
+    var_p = cov[1, 1] / 2
+    # Observed squeezing from covariance eigenvalues
+    V = cov / 2.0
+    eigvals = np.linalg.eigvalsh(V)
+    Vmin = eigvals[0]
+    observed_sq_db = float(-10 * np.log10(Vmin / 0.5)) if Vmin > 0 else 0.0
+    return W, mean_n, var_x, var_p, observed_sq_db
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -96,7 +103,7 @@ def scenario_vacuum():
     pump = 0.0
     r = calculate_squeezing(pump)
     sq_db = 0.0
-    W, _, var_x, var_p = _run_quantum(r, 0.0, 1.0)
+    W, _, var_x, var_p, _ = _run_quantum(r, 0.0, 1.0)
 
     # ---- Hardware mode ----
     cfg = WaveguideConfig()
@@ -117,11 +124,11 @@ def scenario_vacuum():
     ax1.axvline(pump, color=RED, ls="--", lw=1.2)
     ax1.scatter([pump], [sq_db], color=RED, zorder=5, s=70)
     ax1.set_xlabel("Pump Power  P  (mW)")
-    ax1.set_ylabel("Squeezing  (dB)")
+    ax1.set_ylabel("Intrinsic Squeezing (pre-loss)  (dB)")
     ax1.set_title("Phase 2 · Calibration Curve  —  $r = \\eta\\sqrt{P}$",
                    color=ACCENT, fontsize=12, fontweight="bold")
     ax1.grid(True)
-    ax1.text(260, 0.3, f"P = {pump:.0f} mW  →  r = {r:.3f}  →  {sq_db:.1f} dB",
+    ax1.text(260, 0.3, f"P = {pump:.0f} mW  →  r = {r:.3f}  →  Intrinsic: {sq_db:.1f} dB",
              fontsize=11, color=RED,
              bbox=dict(facecolor=PANEL_BG, edgecolor=RED, boxstyle="round,pad=0.4"))
 
@@ -169,7 +176,7 @@ def scenario_calibration():
     pump = 200.0
     r = calculate_squeezing(pump)
     sq_db = -10 * np.log10(np.exp(-2 * r))
-    W, mean_n, var_x, var_p = _run_quantum(r, 0.0, 1.0)
+    W, mean_n, var_x, var_p, _ = _run_quantum(r, 0.0, 1.0)
 
     # ---- Hardware mode ----
     cfg = WaveguideConfig()
@@ -191,13 +198,13 @@ def scenario_calibration():
     ax1.axhline(sq_db, color=RED, ls=":", lw=0.8, alpha=0.6)
     ax1.scatter([pump], [sq_db], color=RED, zorder=5, s=70)
     ax1.set_xlabel("Pump Power  P  (mW)")
-    ax1.set_ylabel("Squeezing  (dB)")
+    ax1.set_ylabel("Intrinsic Squeezing (pre-loss)  (dB)")
     ax1.set_title("Phase 2 · Calibration Curve  —  $r = \\eta\\sqrt{P}$",
                    color=ACCENT, fontsize=12, fontweight="bold")
     ax1.grid(True)
     ax1.legend(loc="lower right", fontsize=9)
     ax1.text(pump + 15, sq_db + 0.15,
-             f"P = {pump:.0f} mW\n$r$ = {r:.4f}\n{sq_db:.2f} dB",
+             f"P = {pump:.0f} mW\n$r$ = {r:.4f}\nIntrinsic: {sq_db:.2f} dB",
              fontsize=10, color=RED,
              bbox=dict(facecolor=PANEL_BG, edgecolor=RED, boxstyle="round,pad=0.4"))
 
@@ -256,9 +263,11 @@ def scenario_decoherence():
     eta_loss = 10 ** (-total_loss_db / 10.0)
 
     # Pure squeezed state (no loss)
-    W_pure, _, vx_pure, vp_pure = _run_quantum(r, 0.0, 1.0)
+    W_pure, _, vx_pure, vp_pure, obs_sq_pure = _run_quantum(r, 0.0, 1.0)
     # Lossy state
-    W_lossy, _, vx_lossy, vp_lossy = _run_quantum(r, 0.0, eta_loss)
+    W_lossy, _, vx_lossy, vp_lossy, obs_sq_lossy = _run_quantum(r, 0.0, eta_loss)
+    # Intrinsic squeezing (constant, pre-loss)
+    intrinsic_sq_db = -10 * np.log10(np.exp(-2 * r))
 
     # ---- Wigner PURE (Top-Left) ----
     ax0 = fig.add_subplot(gs[0, 0:2])
@@ -308,14 +317,17 @@ def scenario_decoherence():
         f"Waveguide Length:    {wg_length_mm:.1f} mm\n"
         f"Total Loss:          {total_loss_db:.1f} dB\n"
         f"Transmissivity:      η = {eta_loss:.4f}\n\n"
+        f"━━━  Squeezing (dB)  ━━━\n\n"
+        f"  Intrinsic (pre-loss):  {intrinsic_sq_db:.2f} dB\n"
+        f"  Observed  (pure):      {obs_sq_pure:.2f} dB\n"
+        f"  Observed  (lossy):     {obs_sq_lossy:.2f} dB\n\n"
         f"━━━  Quadrature Variances  ━━━\n\n"
         f"               Pure      Lossy\n"
         f"  Var(x):      {vx_pure:.4f}    {vx_lossy:.4f}\n"
         f"  Var(p):      {vp_pure:.4f}    {vp_lossy:.4f}\n"
         f"  Shot noise:  0.5000    0.5000\n\n"
-        f"The loss channel mixes the squeezed state\n"
-        f"with vacuum → Wigner function becomes\n"
-        f"more circular (decoherence)."
+        f"Loss reduces observed squeezing;\n"
+        f"intrinsic r stays constant."
     )
     ax3.text(0.05, 0.95, metrics_text, transform=ax3.transAxes,
              fontsize=10, color=WHITE, fontfamily="monospace", va="top",
