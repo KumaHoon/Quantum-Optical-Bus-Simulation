@@ -129,18 +129,18 @@ streamlit run src/quantum_optical_bus/calibration_app.py
 
 ### Squeezing parameter — source knob
 
-The squeezing parameter **r** is a phenomenological mapping from pump power:
+The squeezing parameter **r** is a phenomenological mapping from pump power: [^opa_whitepaper]
 
 $$r = \eta \sqrt{P}$$
 
 where $\eta = 0.1$ is a coupling efficiency placeholder (tuned so 100 mW → r ≈ 1.0).
 This is a **source-level knob** — it controls how much squeezing the nonlinear process
-generates, independent of any downstream losses.
+generates, independent of any downstream losses. [^sq_weedbrook] [^sq_sgate]
 
 ### Loss model
 
 Propagation and detection losses are modelled as a **separate pure-loss channel**
-applied *after* squeezing.  The channel transmissivity is:
+applied *after* squeezing. [^loss_sf] [^loss_gaussian] [^loss_lecture]  The channel transmissivity is: [^db_itu]
 
 $$T = 10^{-\text{loss\_dB}/10}$$
 
@@ -152,14 +152,17 @@ $$\hat{a}_{\text{out}} = \sqrt{T}\,\hat{a}_{\text{in}} + \sqrt{1-T}\,\hat{a}_{\t
 
 | Metric | Definition | Depends on loss? |
 |--------|-----------|-----------------|
-| **Intrinsic squeezing (pre-loss)** | $-10\log_{10}(e^{-2r})$ — computed from *r* only | No |
-| **Observed squeezing (post-loss)** | $-10\log_{10}(V_{\min}/V_{\text{vac}})$ — from output covariance eigenvalues | Yes |
+| **Intrinsic squeezing (pre-loss)** | $-10\log_{10}(e^{-2r})$ — computed from *r* only [^db_def] | No |
+| **Observed squeezing (post-loss)** | $-10\log_{10}(V_{\min}/V_{\text{vac}})$ — from output covariance eigenvalues [^gaussian_decomp] [^sf_cov_doc] | Yes |
 
 Analytic intuition (single-mode Gaussian):
 
 $$V_{\text{out}} = T \cdot V_{\text{in}} + (1-T) \cdot V_{\text{vac}}, \quad V_{\text{vac}} = \tfrac{1}{2}$$
 
 As $T \to 0$ (total loss), $V_{\text{out}} \to V_{\text{vac}}$ and observed squeezing → 0 dB.
+
+> **Note:** Strawberry Fields uses $\hbar=2$ by default ($V_{\text{vac}}=1$).
+> We rescale by ½ when reporting results in the common $V_{\text{vac}}=\tfrac{1}{2}$ convention. [^sf_hbar] [^sf_cov_doc]
 
 ### Honest notes about placeholders
 
@@ -171,6 +174,32 @@ As $T \to 0$ (total loss), $V_{\text{out}} \to V_{\text{vac}}$ and observed sque
 - **Time-bin scope**: each time bin is simulated as an independent single-mode state.
   Inter-bin coupling (e.g., via shared pump or cross-phase modulation) is **not**
   implemented — results assume perfectly isolated bins.
+
+### References / Notes
+
+We model single-mode squeezing and loss using standard continuous-variable (Gaussian) quantum optics, implemented with Strawberry Fields (Gaussian backend).
+
+[^sq_weedbrook]: C. Weedbrook *et al.*, "Gaussian quantum information" ([arXiv:1110.3234](https://arxiv.org/pdf/1110.3234)), single-mode squeezing operator and symplectic map.
+
+[^sq_sgate]: Strawberry Fields API: [`sf.ops.Sgate`](https://strawberryfields.readthedocs.io/en/latest/code/api/strawberryfields.ops.Sgate.html) — definition + quadrature scaling.
+
+[^db_def]: Max Planck Institute lecture note ["From nonlinear optical effects to squeezing"](https://mpl.mpg.de/fileadmin/user_upload/Lecture_2_8.pdf) — definition of quadrature squeezing in dB.
+
+[^loss_sf]: Strawberry Fields API: [`sf.ops.LossChannel`](https://strawberryfields.readthedocs.io/en/latest/code/api/strawberryfields.ops.LossChannel.html) — beamsplitter-with-vacuum model.
+
+[^loss_gaussian]: C. Weedbrook *et al.*, "Gaussian quantum information" ([arXiv:1110.3234](https://arxiv.org/pdf/1110.3234)), lossy Gaussian channels via coupling to vacuum.
+
+[^loss_lecture]: Max Planck Institute lecture note ["From nonlinear optical effects to squeezing"](https://mpl.mpg.de/fileadmin/user_upload/Lecture_2_8.pdf) — loss/efficiency as a beamsplitter.
+
+[^db_itu]: ITU-R Rec. V.574-5, ["Use of the decibel and the neper in telecommunications"](https://www.itu.int/dms_pubrec/itu-r/rec/v/R-REC-V.574-5-201508-I%21%21PDF-E.pdf) — $10\log_{10}$ power ratios.
+
+[^gaussian_decomp]: C. Weedbrook *et al.*, "Gaussian quantum information" ([arXiv:1110.3234](https://arxiv.org/pdf/1110.3234)), one-mode covariance decomposition.
+
+[^sf_hbar]: Strawberry Fields docs: [default $\hbar=2$ convention](https://strawberryfields.readthedocs.io/en/latest/introduction/ops.html).
+
+[^sf_cov_doc]: Strawberry Fields: [`GaussianState.cov()`](https://strawberryfields.readthedocs.io/en/stable/_modules/strawberryfields/backends/states.html) — covariance meaning and relation to squeezing.
+
+[^opa_whitepaper]: JST IMPACT whitepaper ["Physics of Optical Parametric Oscillator Network"](https://www.jst.go.jp/impact/hp_yamamoto/en/technical/pdf/white_2.pdf) — parametric amplification equations; power ∝ |b|² and exponential gain vs pump amplitude.
 
 ---
 
