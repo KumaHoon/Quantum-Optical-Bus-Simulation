@@ -6,6 +6,7 @@ import numpy as np
 
 from quantum_optical_bus.control import apply_feedback_with_latency, simulate_phase_drift
 from quantum_optical_bus.estimation import fit_eta_and_loss
+from quantum_optical_bus.units import db_to_eta
 
 
 def main() -> None:
@@ -17,7 +18,7 @@ def main() -> None:
     powers = np.linspace(5.0, 150.0, 40)
 
     r = eta_true * np.sqrt(powers)
-    transmissivity = 10.0 ** (-loss_true_db / 10.0)
+    transmissivity = float(db_to_eta(loss_true_db))
     vac = 0.5
     var_x = transmissivity * (vac * np.exp(-2.0 * r)) + (1.0 - transmissivity) * vac
     var_p = transmissivity * (vac * np.exp(2.0 * r)) + (1.0 - transmissivity) * vac

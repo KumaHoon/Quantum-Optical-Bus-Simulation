@@ -14,7 +14,9 @@ import numpy as np
 import quantum_optical_bus.compat  # noqa: F401
 
 import strawberryfields as sf
-from strawberryfields.ops import Sgate, Rgate, LossChannel
+from strawberryfields.ops import LossChannel, Rgate, Sgate
+
+from quantum_optical_bus.units import observed_squeezing_from_cov, sf_cov_to_vacuum05
 
 
 class QuantumResult(NamedTuple):
@@ -77,23 +79,10 @@ def run_single_mode(
 
     W = state.wigner(0, xvec, xvec)
     mean_n = state.mean_photon(0)[0]
-    cov = state.cov()
-
-    var_x = cov[0, 0] / 2.0
-    var_p = cov[1, 1] / 2.0
-
-    # Observed squeezing from covariance eigenvalues
-    V = cov / 2.0
-    eigvals = np.linalg.eigvalsh(V)
-    Vmin, Vmax = eigvals[0], eigvals[-1]
-    vacuum_var = 0.5
-
-    observed_sq_db = (
-        float(-10 * np.log10(Vmin / vacuum_var)) if Vmin > 0 else 0.0
-    )
-    observed_antisq_db = (
-        float(10 * np.log10(Vmax / vacuum_var)) if Vmax > 0 else 0.0
-    )
+    cov = sf_cov_to_vacuum05(state.cov())
+    var_x = float(cov[0, 0])
+    var_p = float(cov[1, 1])
+    observed_sq_db, observed_antisq_db = observed_squeezing_from_cov(cov)
 
     return QuantumResult(
         W=W,

@@ -18,6 +18,7 @@ from .tdm_topology import (
     load_topology_config,
     simulate_topology,
 )
+from .units import db_to_eta, eta_to_db, sf_cov_to_vacuum05, observed_squeezing_from_cov
 
 __all__ = [
     "run_hardware_simulation",
@@ -35,5 +36,8 @@ __all__ = [
     "TopologySimulationResult",
     "load_topology_config",
     "simulate_topology",
+    "db_to_eta",
+    "eta_to_db",
+    "sf_cov_to_vacuum05",
+    "observed_squeezing_from_cov",
 ]
-

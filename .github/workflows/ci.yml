@@ -30,21 +30,5 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[test]"
 
-      - name: Verify package import
-        run: |
-          python -c "from quantum_optical_bus import calculate_squeezing; print('OK r =', calculate_squeezing(100))"
-
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short
-
-      - name: Generate dashboard gallery
-        run: python scripts/generate_dashboard_gallery.py
-
-      - name: Generate advanced dashboard gallery
-        run: python scripts/generate_advanced_dashboard_gallery.py
-
-      - name: Upload gallery artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dashboard-gallery-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: assets/dashboard_*.png

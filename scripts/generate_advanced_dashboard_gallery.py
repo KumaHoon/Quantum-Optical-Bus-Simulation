@@ -24,6 +24,7 @@ from quantum_optical_bus.multimode import run_multimode
 from quantum_optical_bus.tdm_topology import simulate_topology
 from quantum_optical_bus.estimation import fit_eta_and_loss
 from quantum_optical_bus.control import simulate_phase_drift, apply_feedback_with_latency
+from quantum_optical_bus.units import db_to_eta
 
 
 ASSETS_DIR = pathlib.Path(__file__).resolve().parents[1] / "assets"
@@ -62,7 +63,7 @@ def scenario_multimode():
     r = np.full(bins, 0.95)
     theta = np.linspace(0.0, 0.6, bins)
     loss_db = np.linspace(0.0, 3.0, bins)
-    eta = 10 ** (-loss_db / 10.0)
+    eta = db_to_eta(loss_db)
     res = run_multimode(r=r, theta=theta, eta_loss=eta, n_modes=bins, wigner_mode=2, xvec=xvec)
 
     fig, axs = plt.subplots(1, 3, figsize=(15, 4.8))
@@ -107,7 +108,7 @@ def scenario_topology():
         "phase_shifts": (np.arange(n) * 0.15).tolist(),
         "loss": [1.0] * n,
         "couplings": [
-            {"i": i, "j": i + 1, "theta": 0.35, "phi": 0.0, "eta_loss": 10 ** (-0.3 / 10.0)}
+            {"i": i, "j": i + 1, "theta": 0.35, "phi": 0.0, "eta_loss": float(db_to_eta(0.3))}
             for i in range(n - 1)
         ],
     }
@@ -152,7 +153,7 @@ def scenario_digital_twin():
     powers = np.linspace(5.0, 180.0, 55)
 
     r_true = eta_true * np.sqrt(powers)
-    trans_true = 10 ** (-loss_true / 10.0)
+    trans_true = float(db_to_eta(loss_true))
     var_x_true = trans_true * (0.5 * np.exp(-2.0 * r_true)) + (1.0 - trans_true) * 0.5
     var_p_true = trans_true * (0.5 * np.exp(2.0 * r_true)) + (1.0 - trans_true) * 0.5
 
@@ -165,7 +166,7 @@ def scenario_digital_twin():
     }
     eta_hat, loss_hat, diag = fit_eta_and_loss(data, model="variance")
     r_hat = eta_hat * np.sqrt(powers)
-    trans_hat = 10 ** (-loss_hat / 10.0)
+    trans_hat = float(db_to_eta(loss_hat))
     var_x_hat = trans_hat * (0.5 * np.exp(-2.0 * r_hat)) + (1.0 - trans_hat) * 0.5
 
     phase = simulate_phase_drift(T=260, step_sigma=0.015, drift_rate=0.0015, seed=21)
@@ -183,7 +184,9 @@ def scenario_digital_twin():
         retention.append(ctl["mean_retention_proxy"])
 
     fig, axs = plt.subplots(1, 2, figsize=(12.8, 4.8))
-    axs[0].scatter(powers, data["measured_var_x"], s=16, alpha=0.8, color=BLUE, label="Measured Var(x)")
+    axs[0].scatter(
+        powers, data["measured_var_x"], s=16, alpha=0.8, color=BLUE, label="Measured Var(x)"
+    )
     axs[0].plot(powers, var_x_hat, color=RED, lw=2, label="Fitted model Var(x)")
     axs[0].set_xlabel("Pump power (mW)")
     axs[0].set_ylabel("Variance")

@@ -35,6 +35,29 @@ class TestTopologyConfig:
         assert parsed.couplings[0].i == 0 and parsed.couplings[0].j == 1
         assert parsed.couplings[0].eta_loss == pytest.approx(0.98, abs=1e-12)
 
+    def test_missing_n_modes_raises(self):
+        with pytest.raises(ValueError, match="n_modes"):
+            load_topology_config({"squeezing_r": [0.2, 0.3]})
+
+    def test_invalid_loss_range_raises(self):
+        cfg = {
+            "n_modes": 2,
+            "squeezing_r": [0.2, 0.3],
+            "loss": [1.0, 1.2],
+        }
+        with pytest.raises(ValueError, match="loss entries must be within"):
+            load_topology_config(cfg)
+
+    def test_invalid_coupling_indices_raise(self):
+        cfg = {
+            "n_modes": 3,
+            "squeezing_r": [0.2, 0.3, 0.4],
+            "loss": [1.0, 1.0, 1.0],
+            "couplings": [{"i": 0, "j": 4, "theta": 0.2}],
+        }
+        with pytest.raises(ValueError, match="indices out of range"):
+            load_topology_config(cfg)
+
 
 class TestTopologySimulation:
     def test_zero_coupling_reduces_to_independent_multimode(self):

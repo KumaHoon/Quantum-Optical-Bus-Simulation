@@ -72,16 +72,20 @@ def apply_feedback_with_latency(
     rng = np.random.default_rng(seed)
 
     if estimator is None:
+
         def estimator_fn(phase_value: float, _t: int, _rng: np.random.Generator) -> float:
             return float(phase_value + _rng.normal(0.0, measurement_sigma))
     else:
+
         def estimator_fn(phase_value: float, t: int, _rng: np.random.Generator) -> float:
             return float(estimator(phase_value, t=t, rng=_rng))
 
     if controller is None:
+
         def controller_fn(estimated_phase: float, _t: int) -> float:
             return float(estimated_phase)
     else:
+
         def controller_fn(estimated_phase: float, t: int) -> float:
             return float(controller(estimated_phase, t=t))
 
@@ -96,14 +100,14 @@ def apply_feedback_with_latency(
             scheduled_command[apply_t] = command
 
     residual = _wrap_phase(phase - scheduled_command)
-    retention = np.exp(-(residual ** 2))
+    retention = np.exp(-(residual**2))
 
     return {
         "true_phase": phase,
         "applied_command": scheduled_command,
         "residual_phase_error": residual,
         "squeezing_retention_proxy": retention,
-        "rms_residual_phase_error": float(np.sqrt(np.mean(residual ** 2))),
+        "rms_residual_phase_error": float(np.sqrt(np.mean(residual**2))),
         "mean_retention_proxy": float(np.mean(retention)),
         "latency_steps": int(latency_steps),
     }

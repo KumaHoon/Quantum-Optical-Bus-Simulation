@@ -12,18 +12,20 @@ import numpy as np
 _COUPLING_EFFICIENCY = 0.1
 
 
-def calculate_squeezing(pump_power_mw: float) -> float:
+def calculate_squeezing(pump_power_mw: float | np.ndarray) -> float | np.ndarray:
     """
     Convert pump power to squeezing parameter.
 
     Parameters
     ----------
-    pump_power_mw : float
+    pump_power_mw : float or np.ndarray
         Pump power in milliwatts (≥ 0).
 
     Returns
     -------
-    r : float
+    r : float or np.ndarray
         Squeezing parameter for a Strawberry Fields ``Sgate``.
     """
-    return _COUPLING_EFFICIENCY * np.sqrt(pump_power_mw)
+    pump = np.asarray(pump_power_mw, dtype=float)
+    r = _COUPLING_EFFICIENCY * np.sqrt(pump)
+    return float(r) if r.ndim == 0 else r

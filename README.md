@@ -82,6 +82,14 @@ Three tabbed visualizations:
 | **2. Squeezed State** (P = 200 mW) | ![Calibration + Squeezing](assets/dashboard_calibration.png) |
 | **3. Decoherence** (Pure vs Lossy) | ![Decoherence Comparison](assets/dashboard_decoherence.png) |
 
+### Advanced Gallery
+
+| Scenario | Image |
+|----------|-------|
+| **4. Multi-mode / Time-bin Simulator** | ![Multi-mode Dashboard](assets/dashboard_multimode.png) |
+| **5. Topology Simulator** | ![Topology Dashboard](assets/dashboard_topology.png) |
+| **6. Digital Twin + Control** | ![Digital Twin Dashboard](assets/dashboard_digital_twin.png) |
+
 ---
 
 ## 🚀 Quick Start
@@ -121,6 +129,7 @@ streamlit run src/quantum_optical_bus/calibration_app.py
 | Task | Command |
 |------|---------|
 | Generate Gallery Images | `python scripts/generate_dashboard_gallery.py` |
+| Generate Advanced Gallery Images | `python scripts/generate_advanced_dashboard_gallery.py` |
 | Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
 
 ### Task Runner
@@ -189,9 +198,15 @@ As $T \to 0$ (total loss), $V_{\text{out}} \to V_{\text{vac}}$ and observed sque
 - **Meep FDTD**: the hardware layer falls back to an analytical Gaussian mode profile
   when Meep is not installed.  The mode data is qualitatively correct but not
   quantitatively validated against full 3-D FDTD.
-- **Time-bin scope**: each time bin is simulated as an independent single-mode state.
-  Inter-bin coupling (e.g., via shared pump or cross-phase modulation) is **not**
-  implemented — results assume perfectly isolated bins.
+- **Time-bin modeling split**:
+  `multimode.py` provides independent per-bin Gaussian evolution (Sgate/Rgate/Loss),
+  while `tdm_topology.py` adds inter-bin coupling via `BSgate` from a config.
+- **Topology/control simplifications**: coupling is an ordered static gate list with
+  per-bin/per-edge loss and phase shifts; it does not yet model pulse-shape effects,
+  higher-order nonlinearities, or full hardware-in-the-loop timing jitter.
+- **Digital twin scope**: `estimation.py` and `control.py` are MVP-level
+  least-squares fitting + latency/drift simulation, intended for calibration studies
+  rather than a full production control stack.
 
 ### References / Notes
 
@@ -247,12 +262,18 @@ Roadmap and phased acceptance criteria are documented in `docs/ROADMAP.md`.
 ├── src/quantum_optical_bus/
 │   ├── calibration_app.py              # Streamlit Calibration Dashboard
 │   ├── quantum.py                      # Shared single-mode Gaussian circuit
+│   ├── multimode.py                    # Independent multi-mode/time-bin Gaussian core
+│   ├── tdm_topology.py                 # Config-driven topology + BSgate coupling
+│   ├── estimation.py                   # Digital twin parameter fitting (eta/loss)
+│   ├── control.py                      # Drift + latency feedback simulation
 │   ├── hardware.py                     # Meep / analytical mock
 │   ├── interface.py                    # Power → Squeezing mapping
 │   └── compat.py                       # Dependency patches
-├── tests/test_core.py                  # Pytest suite (13 tests)
+├── tests/test_core.py                  # Core simulator and dashboard-facing tests
+├── tests/test_digital_twin.py          # Estimation/control regression tests
 ├── scripts/
 │   ├── generate_calibration_demo.py    # Animated demo GIF
-│   └── generate_dashboard_gallery.py   # Dashboard scenario images
+│   ├── generate_dashboard_gallery.py   # Baseline dashboard scenario images
+│   └── generate_advanced_dashboard_gallery.py  # Multimode/topology/digital twin images
 └── assets/                             # Generated images & demo
 ```

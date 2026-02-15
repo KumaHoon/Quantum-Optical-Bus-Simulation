@@ -33,6 +33,30 @@ class TestParameterEstimation:
         assert abs(eta_hat - eta_true) < 0.015
         assert abs(loss_hat - loss_true_db) < 0.45
 
+    def test_fit_recovers_eta_and_loss_from_squeezing_db_synthetic_data(self):
+        eta_true = 0.105
+        loss_true_db = 1.6
+        powers = np.linspace(10.0, 220.0, 70)
+
+        r = eta_true * np.sqrt(powers)
+        transmissivity = 10.0 ** (-loss_true_db / 10.0)
+        var_x = transmissivity * (0.5 * np.exp(-2.0 * r)) + (1.0 - transmissivity) * 0.5
+        measured_sq_db = -10.0 * np.log10(var_x / 0.5)
+
+        data = {
+            "timestamp": np.arange(powers.size, dtype=float),
+            "pump_power_mw": powers,
+            "measured_squeezing_db": measured_sq_db,
+            "estimated_loss_db": np.full(powers.size, 1.2, dtype=float),
+        }
+
+        eta_hat, loss_hat, diagnostics = fit_eta_and_loss(data, model="squeezing_db")
+
+        assert diagnostics["success"]
+        assert diagnostics["model"] == "squeezing_db"
+        assert abs(eta_hat - eta_true) < 0.01
+        assert abs(loss_hat - loss_true_db) < 0.3
+
 
 class TestLatencyControl:
     def test_increasing_latency_worsens_residual_error(self):
@@ -52,6 +76,26 @@ class TestLatencyControl:
 
         for idx in range(len(rms_errors) - 1):
             assert rms_errors[idx] <= rms_errors[idx + 1] + 1e-12, (
-                f"Latency trend violated at {latencies[idx]}->{latencies[idx+1]}: "
-                f"{rms_errors[idx]} vs {rms_errors[idx+1]}"
+                f"Latency trend violated at {latencies[idx]}->{latencies[idx + 1]}: "
+                f"{rms_errors[idx]} vs {rms_errors[idx + 1]}"
+            )
+
+    def test_increasing_measurement_noise_worsens_zero_latency_residual(self):
+        true_phase = np.zeros(200, dtype=float)
+        noise_levels = [0.0, 0.01, 0.03]
+
+        rms_errors = []
+        for sigma in noise_levels:
+            result = apply_feedback_with_latency(
+                latency_steps=0,
+                true_phase=true_phase,
+                measurement_sigma=sigma,
+                seed=123,
+            )
+            rms_errors.append(result["rms_residual_phase_error"])
+
+        for idx in range(len(rms_errors) - 1):
+            assert rms_errors[idx] <= rms_errors[idx + 1] + 1e-12, (
+                f"Measurement-noise trend violated at {noise_levels[idx]}->{noise_levels[idx + 1]}: "
+                f"{rms_errors[idx]} vs {rms_errors[idx + 1]}"
             )

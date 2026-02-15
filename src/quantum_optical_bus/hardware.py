@@ -14,6 +14,7 @@ import numpy as np
 # Attempt to import Meep
 try:
     import meep as mp
+
     HAS_MEEP = True
 except ImportError:
     HAS_MEEP = False
@@ -24,13 +25,13 @@ except ImportError:
 class WaveguideConfig:
     """Physical parameters for the LN Ridge Waveguide."""
 
-    wavelength: float = 1.55          # μm
-    core_width: float = 1.0           # μm
-    core_height: float = 0.6          # μm
-    n_core: float = 2.21              # LN at 1550nm
-    n_clad: float = 1.44              # SiO₂
-    cell_size: float = 3.0            # μm
-    resolution: int = 32              # pixels/μm
+    wavelength: float = 1.55  # μm
+    core_width: float = 1.0  # μm
+    core_height: float = 0.6  # μm
+    n_core: float = 2.21  # LN at 1550nm
+    n_clad: float = 1.44  # SiO₂
+    cell_size: float = 3.0  # μm
+    resolution: int = 32  # pixels/μm
 
 
 def run_hardware_simulation(
@@ -71,6 +72,7 @@ def run_hardware_simulation(
 # ------------------------------------------------------------------
 # Private helpers
 # ------------------------------------------------------------------
+
 
 def _run_meep_simulation(cfg: WaveguideConfig) -> None:
     """Attempt a live Meep eigenmode solve (placeholder)."""
@@ -117,7 +119,7 @@ def _mock_mode(
 
     sigma_x = cfg.core_width / 2.5
     sigma_y = cfg.core_height / 2.5
-    ez_data = np.exp(-(X ** 2) / (2 * sigma_x ** 2) - (Y ** 2) / (2 * sigma_y ** 2))
+    ez_data = np.exp(-(X**2) / (2 * sigma_x**2) - (Y**2) / (2 * sigma_y**2))
 
     n_eff = 2.14
     mode_area = np.pi * (cfg.core_width / 2) * (cfg.core_height / 2)

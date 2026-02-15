@@ -18,6 +18,7 @@ from quantum_optical_bus.quantum import run_single_mode
 
 # ── Interface Layer ──────────────────────────────────────────────
 
+
 class TestCalculateSqueezing:
     def test_zero_power_gives_zero_squeezing(self):
         assert calculate_squeezing(0.0) == 0.0
@@ -37,6 +38,7 @@ class TestCalculateSqueezing:
 
 
 # ── Hardware Layer ───────────────────────────────────────────────
+
 
 class TestHardwareSimulation:
     def test_returns_four_values(self):
@@ -64,6 +66,7 @@ class TestHardwareSimulation:
 
 
 # ── Quantum Simulation (Strawberry Fields) ───────────────────────
+
 
 class TestQuantumSimulation:
     """Verify core quantum simulation properties using SF directly."""
@@ -99,6 +102,7 @@ class TestQuantumSimulation:
 
 
 # ── Intrinsic vs Observed Squeezing ──────────────────────────────
+
 
 class TestSqueezingVsLoss:
     """Verify intrinsic squeezing is constant and observed squeezing
@@ -156,8 +160,8 @@ class TestSqueezingVsLoss:
         for i in range(len(observed_values) - 1):
             assert observed_values[i] >= observed_values[i + 1] - 1e-9, (
                 f"Observed squeezing increased from {observed_values[i]:.4f} dB "
-                f"to {observed_values[i+1]:.4f} dB when loss went from "
-                f"{self.LOSS_DB_VALUES[i]} to {self.LOSS_DB_VALUES[i+1]} dB"
+                f"to {observed_values[i + 1]:.4f} dB when loss went from "
+                f"{self.LOSS_DB_VALUES[i]} to {self.LOSS_DB_VALUES[i + 1]} dB"
             )
 
         # At 10 dB loss the observed squeezing should be noticeably less than at 0 dB

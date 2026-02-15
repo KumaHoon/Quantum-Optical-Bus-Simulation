@@ -20,6 +20,8 @@ import quantum_optical_bus.compat  # noqa: F401
 import strawberryfields as sf
 from strawberryfields.ops import LossChannel, Rgate, Sgate
 
+from quantum_optical_bus.units import observed_squeezing_from_cov, sf_cov_to_vacuum05
+
 
 class MultiModeResult(NamedTuple):
     """Container for independent multi-mode Gaussian simulation outputs."""
@@ -134,8 +136,7 @@ def run_multimode(
 
     state = sf.Engine("gaussian").run(prog).state
 
-    cov = state.cov() / 2.0  # SF uses hbar=2 convention
-    vacuum_var = 0.5
+    cov = sf_cov_to_vacuum05(state.cov())
 
     mean_photon = np.zeros(n, dtype=float)
     var_x = np.zeros(n, dtype=float)
@@ -150,11 +151,7 @@ def run_multimode(
         block = cov[np.ix_([x_idx, p_idx], [x_idx, p_idx])]
         var_x[idx] = float(cov[x_idx, x_idx])
         var_p[idx] = float(cov[p_idx, p_idx])
-        eigvals = np.linalg.eigvalsh(block)
-        vmin = float(eigvals[0])
-        vmax = float(eigvals[-1])
-        observed_sq_db[idx] = float(-10 * np.log10(vmin / vacuum_var)) if vmin > 0 else 0.0
-        observed_antisq_db[idx] = float(10 * np.log10(vmax / vacuum_var)) if vmax > 0 else 0.0
+        observed_sq_db[idx], observed_antisq_db[idx] = observed_squeezing_from_cov(block)
 
     wigner = None
     if wigner_mode is not None and grid is not None:

@@ -46,7 +46,9 @@ def _load_data(data: dict[str, Any] | str | Path) -> dict[str, np.ndarray]:
     raise TypeError("data must be dict, str, or Path")
 
 
-def _predicted_variances(pump_power_mw: np.ndarray, eta: float, loss_db: float) -> tuple[np.ndarray, np.ndarray]:
+def _predicted_variances(
+    pump_power_mw: np.ndarray, eta: float, loss_db: float
+) -> tuple[np.ndarray, np.ndarray]:
     r = eta * np.sqrt(np.clip(pump_power_mw, 0.0, None))
     transmissivity = 10.0 ** (-loss_db / 10.0)
     vac = 0.5
@@ -104,7 +106,9 @@ def fit_eta_and_loss(
     n = pump.size
     for key, value in arr.items():
         if value.size not in (0, n):
-            raise ValueError(f"column {key} length {value.size} does not match pump_power_mw length {n}")
+            raise ValueError(
+                f"column {key} length {value.size} does not match pump_power_mw length {n}"
+            )
 
     init_eta = 0.1
     init_loss = float(np.median(arr["estimated_loss_db"])) if "estimated_loss_db" in arr else 1.0

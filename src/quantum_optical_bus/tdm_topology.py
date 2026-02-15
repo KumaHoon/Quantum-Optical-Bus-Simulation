@@ -21,6 +21,8 @@ import quantum_optical_bus.compat  # noqa: F401
 import strawberryfields as sf
 from strawberryfields.ops import BSgate, LossChannel, Rgate, Sgate
 
+from quantum_optical_bus.units import observed_squeezing_from_cov, sf_cov_to_vacuum05
+
 
 @dataclass(frozen=True)
 class BeamSplitterCoupling:
@@ -99,7 +101,9 @@ def _read_config_file(path: Path) -> dict[str, Any]:
     raise ValueError(f"Unsupported config file extension: {suffix}")
 
 
-def load_topology_config(config: TDMTopologyConfig | dict[str, Any] | str | Path) -> TDMTopologyConfig:
+def load_topology_config(
+    config: TDMTopologyConfig | dict[str, Any] | str | Path,
+) -> TDMTopologyConfig:
     """Load and validate topology config from dict/path/dataclass."""
     if isinstance(config, TDMTopologyConfig):
         return config
@@ -125,7 +129,9 @@ def load_topology_config(config: TDMTopologyConfig | dict[str, Any] | str | Path
         0.0,
         "squeezing_phi",
     )
-    phase_shifts = _to_vector(raw.get("phase_shifts", raw.get("theta")), n_modes, 0.0, "phase_shifts")
+    phase_shifts = _to_vector(
+        raw.get("phase_shifts", raw.get("theta")), n_modes, 0.0, "phase_shifts"
+    )
     loss = _to_vector(raw.get("loss", raw.get("eta_loss")), n_modes, 1.0, "loss")
 
     if np.any((loss < 0.0) | (loss > 1.0)):
@@ -165,7 +171,9 @@ def load_topology_config(config: TDMTopologyConfig | dict[str, Any] | str | Path
     )
 
 
-def simulate_topology(config: TDMTopologyConfig | dict[str, Any] | str | Path) -> TopologySimulationResult:
+def simulate_topology(
+    config: TDMTopologyConfig | dict[str, Any] | str | Path,
+) -> TopologySimulationResult:
     """Simulate a topology with optional inter-bin beam-splitter couplings."""
     cfg = load_topology_config(config)
     n = cfg.n_modes
@@ -190,14 +198,13 @@ def simulate_topology(config: TDMTopologyConfig | dict[str, Any] | str | Path) -
                 LossChannel(edge.eta_loss) | q[edge.j]
 
     state = sf.Engine("gaussian").run(prog).state
-    cov = state.cov() / 2.0  # Convert SF hbar=2 convention to vacuum=0.5 convention.
+    cov = sf_cov_to_vacuum05(state.cov())
 
     mean_photon = np.zeros(n, dtype=float)
     var_x = np.zeros(n, dtype=float)
     var_p = np.zeros(n, dtype=float)
     observed_sq_db = np.zeros(n, dtype=float)
     observed_antisq_db = np.zeros(n, dtype=float)
-    vacuum_var = 0.5
 
     for mode in range(n):
         mean_photon[mode] = float(state.mean_photon(mode)[0])
@@ -206,11 +213,7 @@ def simulate_topology(config: TDMTopologyConfig | dict[str, Any] | str | Path) -
         block = cov[np.ix_([x_idx, p_idx], [x_idx, p_idx])]
         var_x[mode] = float(cov[x_idx, x_idx])
         var_p[mode] = float(cov[p_idx, p_idx])
-        eigvals = np.linalg.eigvalsh(block)
-        vmin = float(eigvals[0])
-        vmax = float(eigvals[-1])
-        observed_sq_db[mode] = float(-10 * np.log10(vmin / vacuum_var)) if vmin > 0 else 0.0
-        observed_antisq_db[mode] = float(10 * np.log10(vmax / vacuum_var)) if vmax > 0 else 0.0
+        observed_sq_db[mode], observed_antisq_db[mode] = observed_squeezing_from_cov(block)
 
     x_cov = cov[:n, :n]
     p_cov = cov[n:, n:]
