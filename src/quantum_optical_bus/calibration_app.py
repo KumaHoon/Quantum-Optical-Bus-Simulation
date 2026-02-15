@@ -1,5 +1,5 @@
-"""
-Calibration Dashboard — Streamlit Application
+﻿"""
+Calibration Dashboard â€” Streamlit Application
 
 A "White Box" presentation tool that exposes the calibration logic
 connecting classical FDTD hardware parameters to continuous-variable
@@ -23,7 +23,7 @@ for _p in (_SRC_DIR, _PROJECT_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-# Compat patches — must come before strawberryfields import
+# Compat patches â€” must come before strawberryfields import
 import quantum_optical_bus.compat  # noqa: F401, E402
 
 import io
@@ -37,20 +37,24 @@ import streamlit as st
 
 from quantum_optical_bus.hardware import run_hardware_simulation, WaveguideConfig
 from quantum_optical_bus.interface import calculate_squeezing
+from quantum_optical_bus.multimode import run_multimode
 from quantum_optical_bus.quantum import run_single_mode
+from quantum_optical_bus.tdm_topology import simulate_topology
+from quantum_optical_bus.estimation import fit_eta_and_loss
+from quantum_optical_bus.control import simulate_phase_drift, apply_feedback_with_latency
 
-# ──────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Page configuration
-# ──────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.set_page_config(
-    page_title="TDM Optical Bus — Calibration Dashboard",
-    page_icon="🔬",
+    page_title="TDM Optical Bus â€” Calibration Dashboard",
+    page_icon="ðŸ”¬",
     layout="wide",
 )
 
-# ──────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Custom CSS for a polished, premium look
-# ──────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown(
     """
     <style>
@@ -94,17 +98,17 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ══════════════════════════════════════════════════════════════════════
-#  SIDEBAR — Experimental Setup
-# ══════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+#  SIDEBAR â€” Experimental Setup
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with st.sidebar:
-    st.markdown("## 🔧 Experimental Setup")
+    st.markdown("## ðŸ”§ Experimental Setup")
 
     # --- 1. Hardware Parameters ---
-    st.markdown('<p class="section-label">1 · HARDWARE PARAMETERS (MEEP)</p>', unsafe_allow_html=True)
+    st.markdown('<p class="section-label">1 Â· HARDWARE PARAMETERS (MEEP)</p>', unsafe_allow_html=True)
 
     n_core_display = 2.21
-    st.markdown(f"**Refractive Index** $n_{{\\text{{core}}}}$ = `{n_core_display}`  *(LN @ 1550 nm — fixed)*")
+    st.markdown(f"**Refractive Index** $n_{{\\text{{core}}}}$ = `{n_core_display}`  *(LN @ 1550 nm â€” fixed)*")
 
     wg_length_mm = st.slider(
         "Waveguide Length  $L$  (mm)",
@@ -127,7 +131,7 @@ with st.sidebar:
     st.divider()
 
     # --- 2. Pump Laser Control ---
-    st.markdown('<p class="section-label">2 · PUMP LASER CONTROL</p>', unsafe_allow_html=True)
+    st.markdown('<p class="section-label">2 Â· PUMP LASER CONTROL</p>', unsafe_allow_html=True)
 
     pump_power_mw = st.slider(
         "Input Power  $P$  (mW)",
@@ -150,38 +154,38 @@ with st.sidebar:
     st.divider()
     st.caption("Built with Strawberry Fields + Meep")
 
-# ══════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  DERIVED PHYSICS
-# ══════════════════════════════════════════════════════════════════════
-# Coupling efficiency η  (phenomenological; η√P → r)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# Coupling efficiency Î·  (phenomenological; Î·âˆšP â†’ r)
 ETA = 0.1  # same value used in interface.py
 
 r_param = calculate_squeezing(pump_power_mw)
 intrinsic_squeezing_db = -10 * np.log10(np.exp(-2 * r_param)) if r_param > 0 else 0.0
 
-# Loss model: convert dB/cm + length → transmissivity η_loss ∈ [0, 1]
-total_loss_db = loss_db_cm * (wg_length_mm / 10.0)        # mm → cm
+# Loss model: convert dB/cm + length â†’ transmissivity Î·_loss âˆˆ [0, 1]
+total_loss_db = loss_db_cm * (wg_length_mm / 10.0)        # mm â†’ cm
 eta_loss = 10 ** (-total_loss_db / 10.0)                   # linear transmissivity
 
-# ══════════════════════════════════════════════════════════════════════
-#  MAIN AREA — Header
-# ══════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+#  MAIN AREA â€” Header
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 st.markdown(
     """
-    # 🔬 TDM Optical Bus — Hardware-to-Quantum Calibration
+    # ðŸ”¬ TDM Optical Bus â€” Hardware-to-Quantum Calibration
     **Mapping Classical FDTD Parameters to Continuous-Variable (CV) Quantum States**
     """
 )
 
-# ══════════════════════════════════════════════════════════════════════
-#  SECTION 1 — Phase 1: The Device
-# ══════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+#  SECTION 1 â€” Phase 1: The Device
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 st.markdown("---")
-st.markdown("### Phase 1 · The Device — LN Ridge Waveguide")
+st.markdown("### Phase 1 Â· The Device â€” LN Ridge Waveguide")
 
 col_hw_plot, col_hw_info = st.columns([3, 2])
 
-# Run hardware simulation (mock Gaussian mode — Meep fallback is silent)
+# Run hardware simulation (mock Gaussian mode â€” Meep fallback is silent)
 cfg = WaveguideConfig()
 with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
     n_eff, mode_area, ez_data, extent = run_hardware_simulation(cfg)
@@ -199,21 +203,21 @@ with col_hw_plot:
 
 with col_hw_info:
     st.metric("Effective Index  $n_{\\text{eff}}$", f"{n_eff:.3f}")
-    st.metric("Mode Area", f"{mode_area:.3f}  μm²")
-    st.metric("Core Material", "LiNbO₃  (1550 nm)")
+    st.metric("Mode Area", f"{mode_area:.3f}  Î¼mÂ²")
+    st.metric("Core Material", "LiNbOâ‚ƒ  (1550 nm)")
     st.markdown(
         r"""
-        > The waveguide geometry is **fixed** — it represents the
+        > The waveguide geometry is **fixed** â€” it represents the
         > physical hardware fabricated once.  All dynamic control
         > comes from the pump laser parameters (Phase 2).
         """
     )
 
-# ══════════════════════════════════════════════════════════════════════
-#  SECTION 2 — Phase 2: The Calibration Bridge (THE CORE)
-# ══════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+#  SECTION 2 â€” Phase 2: The Calibration Bridge (THE CORE)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 st.markdown("---")
-st.markdown("### Phase 2 · The Calibration Bridge")
+st.markdown("### Phase 2 Â· The Calibration Bridge")
 
 col_physics, col_formula = st.columns(2)
 
@@ -226,7 +230,7 @@ with col_physics:
         physical parameters in the current version.
 
         The squeezing parameter scales with the **square root
-        of the pump power** — a direct consequence of the parametric
+        of the pump power** â€” a direct consequence of the parametric
         down-conversion Hamiltonian:
 
         $$\hat{H}_{\text{int}} \;\propto\; \chi^{(2)}\,\hat{a}^2 + \text{h.c.}$$
@@ -234,7 +238,7 @@ with col_physics:
         **Roadmap:** replace $\eta$ with a value computed from
         the FDTD mode overlap integral, $\chi^{(2)}$ nonlinearity,
         and waveguide geometry (Meep hook / overlap integral pipeline
-        — not yet wired).
+        â€” not yet wired).
         """
     )
 
@@ -257,8 +261,8 @@ with col_formula:
                     f"({total_loss_db:.2f} dB total loss over {wg_length_mm:.1f} mm)")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Live P → r curve
-st.markdown("#### Power–Squeezing Calibration Curve  *(intrinsic, pre-loss)*")
+# Live P â†’ r curve
+st.markdown("#### Powerâ€“Squeezing Calibration Curve  *(intrinsic, pre-loss)*")
 powers_curve = np.linspace(0, 500, 300)
 r_curve = ETA * np.sqrt(powers_curve)
 db_curve = -10 * np.log10(np.exp(-2 * r_curve))
@@ -277,14 +281,14 @@ fig_cal.tight_layout()
 st.pyplot(fig_cal)
 plt.close(fig_cal)
 
-# ══════════════════════════════════════════════════════════════════════
-#  SECTION 3 — Phase 3: Quantum Result
-# ══════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+#  SECTION 3 â€” Phase 3: Quantum Result
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 st.markdown("---")
-st.markdown("### Phase 3 · Quantum Result")
+st.markdown("### Phase 3 Â· Quantum Result")
 
 tab_wigner, tab_photon, tab_noise = st.tabs(
-    ["🌀  Wigner Function", "📊  Photon Number Distribution", "📉  Noise Variance"]
+    ["ðŸŒ€  Wigner Function", "ðŸ“Š  Photon Number Distribution", "ðŸ“‰  Noise Variance"]
 )
 
 # ---------- helpers ----------
@@ -293,7 +297,7 @@ GRID_POINTS = 120
 xvec = np.linspace(-GRID_LIMIT, GRID_LIMIT, GRID_POINTS)
 
 
-@st.cache_data(show_spinner="Running Strawberry Fields …")
+@st.cache_data(show_spinner="Running Strawberry Fields â€¦")
 def _run_quantum(r: float, theta: float, eta: float):
     """Thin cached wrapper around the shared ``run_single_mode``."""
     res = run_single_mode(r, theta, eta, xvec)
@@ -332,9 +336,9 @@ with tab_wigner:
         st.metric("Mean Photon #", f"{mean_photon:.2f}")
         if loss_db_cm > 0:
             st.info(
-                "🔍 Loss changes the **observed squeezing** (output state), "
+                "ðŸ” Loss changes the **observed squeezing** (output state), "
                 "not the intrinsic *r* parameter. The Wigner function becomes "
-                "more circular as loss increases — this is decoherence."
+                "more circular as loss increases â€” this is decoherence."
             )
 
 # ---------- Tab 2: Photon Number Distribution ----------
@@ -348,7 +352,7 @@ with tab_photon:
         probs[0] = 1.0
     else:
         # Analytical squeezed vacuum (no loss): P(2k) = (tanh r)^{2k} / (cosh r * C(2k,k) * 4^k)
-        # Use numerical from mean_photon for lossy case — approximate via thermal-squeezed model.
+        # Use numerical from mean_photon for lossy case â€” approximate via thermal-squeezed model.
         # Simple approach: build from Wigner marginals or use SF state.fock_prob
         # Here we use a quick analytical formula for pure squeezed vacuum:
         tanh_r = np.tanh(r_param)
@@ -375,11 +379,11 @@ with tab_photon:
     fig_pn.tight_layout()
     st.pyplot(fig_pn)
     plt.close(fig_pn)
-    st.caption("Squeezed vacuum produces photon pairs — only **even** photon numbers are populated (blue bars).")
+    st.caption("Squeezed vacuum produces photon pairs â€” only **even** photon numbers are populated (blue bars).")
 
 # ---------- Tab 3: Noise Variance ----------
 with tab_noise:
-    vacuum_var = 0.5  # shot noise level (ħ = 1)
+    vacuum_var = 0.5  # shot noise level (Ä§ = 1)
 
     col_var_plot, col_var_info = st.columns([3, 1])
     with col_var_plot:
@@ -423,26 +427,253 @@ with tab_noise:
         st.metric("Var(p)", f"{var_p:.4f}", delta=f"{delta_p:+.1f} dB vs vacuum")
         st.markdown(
             r"""
-            **Below** the dashed line → noise is *squeezed* below vacuum.
-            **Above** the dashed line → noise is *anti-squeezed*.
+            **Below** the dashed line â†’ noise is *squeezed* below vacuum.
+            **Above** the dashed line â†’ noise is *anti-squeezed*.
 
             Heisenberg relation:
             $$\mathrm{Var}(x)\;\mathrm{Var}(p) \;\geq\; \tfrac{1}{4}$$
             """
         )
 
-# ══════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ------------------------------------------------------------------------------
+# SECTION 4 - Advanced Simulators / Digital Twin
+# ------------------------------------------------------------------------------
+st.markdown("---")
+st.markdown("### Phase 4 - Advanced Simulation + Digital Twin")
+
+tab_mm, tab_topology, tab_twin = st.tabs(
+    ["Multi-mode / Time-bin", "Topology Simulator", "Digital Twin Fit + Control"]
+)
+
+with tab_mm:
+    col_mm_ctrl, col_mm_plot = st.columns([1, 2])
+
+    with col_mm_ctrl:
+        mm_bins = st.slider("Number of bins", 1, 12, 4, key="mm_bins")
+        mm_base_r = st.slider("Base squeezing r", 0.0, 2.0, float(min(r_param, 2.0)), 0.01, key="mm_base_r")
+        mm_phase_step = st.slider(
+            "Per-bin rotation step (rad)",
+            min_value=float(-np.pi),
+            max_value=float(np.pi),
+            value=0.2,
+            step=0.01,
+            key="mm_phase_step",
+        )
+        mm_end_loss_db = st.slider("End-bin loss (dB)", 0.0, 8.0, 2.0, 0.1, key="mm_end_loss_db")
+        mm_wigner_mode = st.slider("Wigner mode index", 0, mm_bins - 1, 0, key="mm_wigner_mode")
+
+    mm_loss_db = np.linspace(0.0, mm_end_loss_db, mm_bins)
+    mm_eta = 10 ** (-mm_loss_db / 10.0)
+    mm_r = np.full(mm_bins, mm_base_r, dtype=float)
+    mm_theta = np.arange(mm_bins, dtype=float) * mm_phase_step
+    mm_result = run_multimode(
+        r=mm_r,
+        theta=mm_theta,
+        eta_loss=mm_eta,
+        n_modes=mm_bins,
+        wigner_mode=mm_wigner_mode,
+        xvec=xvec,
+    )
+
+    with col_mm_plot:
+        fig_mm, axs_mm = plt.subplots(1, 2, figsize=(11, 4.2))
+        bins = np.arange(mm_bins)
+        axs_mm[0].plot(bins, mm_result.observed_sq_db, marker="o", color="#58a6ff", label="Observed sq (dB)")
+        axs_mm[0].plot(
+            bins,
+            mm_result.observed_antisq_db,
+            marker="s",
+            color="#f97583",
+            label="Observed anti-sq (dB)",
+        )
+        axs_mm[0].set_xlabel("Time bin index")
+        axs_mm[0].set_ylabel("dB")
+        axs_mm[0].set_title("Per-bin squeezing metrics")
+        axs_mm[0].grid(True, alpha=0.3)
+        axs_mm[0].legend(loc="best")
+
+        axs_mm[1].plot(bins, mm_result.var_x, marker="o", color="#3fb950", label="Var(x)")
+        axs_mm[1].plot(bins, mm_result.var_p, marker="o", color="#f97583", label="Var(p)")
+        axs_mm[1].axhline(0.5, color="#8b949e", ls="--", lw=1, label="Vacuum")
+        axs_mm[1].set_xlabel("Time bin index")
+        axs_mm[1].set_ylabel("Variance")
+        axs_mm[1].set_title("Per-bin quadrature variances")
+        axs_mm[1].grid(True, alpha=0.3)
+        axs_mm[1].legend(loc="best")
+        fig_mm.tight_layout()
+        st.pyplot(fig_mm)
+        plt.close(fig_mm)
+
+        if mm_result.wigner is not None:
+            fig_mm_w, ax_mm_w = plt.subplots(figsize=(4.8, 4.2))
+            ax_mm_w.contourf(xvec, xvec, mm_result.wigner, levels=60, cmap="RdBu_r")
+            ax_mm_w.set_title(f"Wigner (bin {mm_wigner_mode})")
+            ax_mm_w.set_xlabel("x")
+            ax_mm_w.set_ylabel("p")
+            ax_mm_w.set_aspect("equal")
+            fig_mm_w.tight_layout()
+            st.pyplot(fig_mm_w)
+            plt.close(fig_mm_w)
+
+        st.dataframe(
+            {
+                "bin": bins,
+                "loss_db": mm_loss_db,
+                "observed_sq_db": mm_result.observed_sq_db,
+                "observed_antisq_db": mm_result.observed_antisq_db,
+                "var_x": mm_result.var_x,
+                "var_p": mm_result.var_p,
+            },
+            use_container_width=True,
+        )
+
+with tab_topology:
+    col_top_ctrl, col_top_plot = st.columns([1, 2])
+    with col_top_ctrl:
+        top_n = st.slider("Topology modes", 2, 10, 4, key="top_n")
+        top_r = st.slider("Per-mode r", 0.0, 1.5, float(min(r_param, 1.5)), 0.01, key="top_r")
+        top_phase_step = st.slider(
+            "Per-bin phase shift step (rad)",
+            min_value=float(-np.pi),
+            max_value=float(np.pi),
+            value=0.1,
+            step=0.01,
+            key="top_phase_step",
+        )
+        top_theta = st.slider("Neighbor coupling theta", 0.0, 1.2, 0.35, 0.01, key="top_theta")
+        top_edge_loss_db = st.slider("Per-edge loss (dB)", 0.0, 3.0, 0.2, 0.05, key="top_edge_loss_db")
+
+    edge_eta = 10 ** (-top_edge_loss_db / 10.0)
+    top_cfg = {
+        "n_modes": top_n,
+        "squeezing_r": [top_r] * top_n,
+        "phase_shifts": (np.arange(top_n) * top_phase_step).tolist(),
+        "loss": [1.0] * top_n,
+        "couplings": [
+            {"i": i, "j": i + 1, "theta": top_theta, "phi": 0.0, "eta_loss": edge_eta}
+            for i in range(top_n - 1)
+        ],
+    }
+    top_result = simulate_topology(top_cfg)
+
+    with col_top_plot:
+        fig_top, axs_top = plt.subplots(1, 2, figsize=(11, 4.2))
+        im_x = axs_top[0].imshow(top_result.corr_x, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
+        axs_top[0].set_title("Corr(X) heatmap")
+        axs_top[0].set_xlabel("j")
+        axs_top[0].set_ylabel("i")
+        fig_top.colorbar(im_x, ax=axs_top[0], fraction=0.046, pad=0.04)
+
+        im_p = axs_top[1].imshow(top_result.corr_p, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
+        axs_top[1].set_title("Corr(P) heatmap")
+        axs_top[1].set_xlabel("j")
+        axs_top[1].set_ylabel("i")
+        fig_top.colorbar(im_p, ax=axs_top[1], fraction=0.046, pad=0.04)
+        fig_top.tight_layout()
+        st.pyplot(fig_top)
+        plt.close(fig_top)
+
+        if top_n > 1:
+            fig_nei, ax_nei = plt.subplots(figsize=(8.5, 3.3))
+            neighbors = np.arange(top_n - 1)
+            ax_nei.plot(neighbors, top_result.neighbor_cov_x, marker="o", color="#58a6ff", label="Cov(x_i,x_{i+1})")
+            ax_nei.plot(neighbors, top_result.neighbor_cov_p, marker="o", color="#f97583", label="Cov(p_i,p_{i+1})")
+            ax_nei.axhline(0.0, color="#8b949e", ls="--", lw=1)
+            ax_nei.set_xlabel("Neighbor pair index i")
+            ax_nei.set_ylabel("Covariance")
+            ax_nei.set_title("Neighbor correlation metrics")
+            ax_nei.grid(True, alpha=0.3)
+            ax_nei.legend(loc="best")
+            fig_nei.tight_layout()
+            st.pyplot(fig_nei)
+            plt.close(fig_nei)
+
+with tab_twin:
+    col_twin_ctrl, col_twin_plot = st.columns([1, 2])
+    with col_twin_ctrl:
+        twin_points = st.slider("Synthetic samples", 20, 180, 70, key="twin_points")
+        twin_eta_true = st.slider("True eta", 0.03, 0.25, 0.11, 0.001, key="twin_eta_true")
+        twin_loss_true = st.slider("True loss (dB)", 0.0, 6.0, 1.8, 0.05, key="twin_loss_true")
+        twin_noise_x = st.slider("Noise sigma Var(x)", 0.0, 0.02, 0.003, 0.0005, key="twin_noise_x")
+        twin_noise_p = st.slider("Noise sigma Var(p)", 0.0, 0.05, 0.01, 0.001, key="twin_noise_p")
+        twin_seed = st.number_input("Random seed", min_value=0, max_value=99999, value=7, step=1, key="twin_seed")
+        twin_latency_max = st.slider("Max latency steps", 1, 12, 8, key="twin_latency_max")
+
+    rng = np.random.default_rng(int(twin_seed))
+    twin_powers = np.linspace(5.0, 250.0, twin_points)
+    twin_r_true = twin_eta_true * np.sqrt(twin_powers)
+    twin_trans_true = 10 ** (-twin_loss_true / 10.0)
+    twin_var_x_true = twin_trans_true * (0.5 * np.exp(-2.0 * twin_r_true)) + (1.0 - twin_trans_true) * 0.5
+    twin_var_p_true = twin_trans_true * (0.5 * np.exp(2.0 * twin_r_true)) + (1.0 - twin_trans_true) * 0.5
+
+    twin_data = {
+        "timestamp": np.arange(twin_points, dtype=float),
+        "pump_power_mw": twin_powers,
+        "measured_var_x": twin_var_x_true + rng.normal(0.0, twin_noise_x, size=twin_points),
+        "measured_var_p": twin_var_p_true + rng.normal(0.0, twin_noise_p, size=twin_points),
+        "estimated_loss_db": np.full(twin_points, max(twin_loss_true - 0.6, 0.1), dtype=float),
+    }
+    eta_hat, loss_hat, fit_diag = fit_eta_and_loss(twin_data, model="variance")
+
+    twin_r_hat = eta_hat * np.sqrt(twin_powers)
+    twin_trans_hat = 10 ** (-loss_hat / 10.0)
+    twin_var_x_hat = twin_trans_hat * (0.5 * np.exp(-2.0 * twin_r_hat)) + (1.0 - twin_trans_hat) * 0.5
+
+    phase_path = simulate_phase_drift(T=260, step_sigma=0.015, drift_rate=0.0015, seed=int(twin_seed) + 11)
+    latencies = np.arange(0, twin_latency_max + 1, dtype=int)
+    rms_errors = []
+    retention = []
+    for lat in latencies:
+        ctl = apply_feedback_with_latency(
+            latency_steps=int(lat),
+            true_phase=phase_path,
+            measurement_sigma=0.002,
+            seed=int(twin_seed) + 17,
+        )
+        rms_errors.append(ctl["rms_residual_phase_error"])
+        retention.append(ctl["mean_retention_proxy"])
+
+    with col_twin_plot:
+        m1, m2, m3 = st.columns(3)
+        m1.metric("eta (true / fit)", f"{twin_eta_true:.4f} / {eta_hat:.4f}")
+        m2.metric("loss dB (true / fit)", f"{twin_loss_true:.3f} / {loss_hat:.3f}")
+        m3.metric("fit RMSE", f"{fit_diag['rmse']:.5f}")
+
+        fig_fit, axs_fit = plt.subplots(1, 2, figsize=(11, 4.2))
+        axs_fit[0].scatter(twin_powers, twin_data["measured_var_x"], s=16, alpha=0.7, color="#58a6ff", label="Measured Var(x)")
+        axs_fit[0].plot(twin_powers, twin_var_x_hat, color="#f97583", lw=2, label="Fitted model Var(x)")
+        axs_fit[0].set_xlabel("Pump power (mW)")
+        axs_fit[0].set_ylabel("Variance")
+        axs_fit[0].set_title("Digital twin fit")
+        axs_fit[0].grid(True, alpha=0.3)
+        axs_fit[0].legend(loc="best")
+
+        axs_fit[1].plot(latencies, rms_errors, marker="o", color="#f97583", label="RMS residual phase")
+        axs_fit[1].plot(latencies, retention, marker="o", color="#3fb950", label="Retention proxy")
+        axs_fit[1].set_xlabel("Latency steps")
+        axs_fit[1].set_title("Latency vs control quality")
+        axs_fit[1].grid(True, alpha=0.3)
+        axs_fit[1].legend(loc="best")
+        fig_fit.tight_layout()
+        st.pyplot(fig_fit)
+        plt.close(fig_fit)
+
+# ------------------------------------------------------------------------------
+# Footer
 #  Footer
-# ══════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 st.markdown("---")
 st.markdown(
     """
     <div style="text-align:center; color:#8b949e; font-size:0.85rem;">
-    TDM Optical Bus Calibration Dashboard &nbsp;·&nbsp;
-    Strawberry Fields (Gaussian backend) &nbsp;·&nbsp;
-    Meep FDTD (analytical mock) &nbsp;·&nbsp;
+    TDM Optical Bus Calibration Dashboard &nbsp;Â·&nbsp;
+    Strawberry Fields (Gaussian backend) &nbsp;Â·&nbsp;
+    Meep FDTD (analytical mock) &nbsp;Â·&nbsp;
     Streamlit
     </div>
     """,
     unsafe_allow_html=True,
 )
+
+

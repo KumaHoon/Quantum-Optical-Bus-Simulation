@@ -12,6 +12,8 @@ import pytest
 
 from quantum_optical_bus.hardware import run_hardware_simulation, WaveguideConfig
 from quantum_optical_bus.interface import calculate_squeezing
+from quantum_optical_bus.multimode import run_multimode
+from quantum_optical_bus.quantum import run_single_mode
 
 
 # ── Interface Layer ──────────────────────────────────────────────
@@ -174,3 +176,63 @@ class TestSqueezingVsLoss:
             assert intrinsic_db_again == pytest.approx(intrinsic_db, abs=1e-12), (
                 f"Intrinsic squeezing changed at loss_db={loss_db}"
             )
+
+
+class TestMultiModeCore:
+    """Tests for independent multi-mode Gaussian simulation."""
+
+    def test_n1_matches_single_mode_metrics(self):
+        xvec = np.linspace(-4.0, 4.0, 80)
+        r = calculate_squeezing(100.0)
+        theta = 0.21
+        eta = 0.83
+
+        single = run_single_mode(r=r, theta=theta, eta_loss=eta, xvec=xvec)
+        multi = run_multimode(
+            r=r,
+            theta=theta,
+            eta_loss=eta,
+            n_modes=1,
+            xvec=xvec,
+            wigner_mode=0,
+        )
+
+        assert multi.mean_photon[0] == pytest.approx(single.mean_photon, rel=1e-7, abs=1e-9)
+        assert multi.var_x[0] == pytest.approx(single.var_x, rel=1e-7, abs=1e-9)
+        assert multi.var_p[0] == pytest.approx(single.var_p, rel=1e-7, abs=1e-9)
+        assert multi.observed_sq_db[0] == pytest.approx(single.observed_sq_db, rel=1e-7, abs=1e-9)
+        assert multi.observed_antisq_db[0] == pytest.approx(
+            single.observed_antisq_db, rel=1e-7, abs=1e-9
+        )
+        assert multi.wigner is not None
+        assert np.allclose(multi.wigner, single.W, atol=1e-8)
+
+    def test_per_mode_observed_squeezing_decreases_with_loss(self):
+        r = calculate_squeezing(100.0)
+        losses = np.array([1.0, 0.8, 0.6, 0.4])
+        multi = run_multimode(
+            r=np.full(losses.shape, r),
+            theta=0.0,
+            eta_loss=losses,
+            n_modes=losses.size,
+        )
+
+        observed = multi.observed_sq_db
+        for idx in range(observed.size - 1):
+            assert observed[idx] >= observed[idx + 1] - 1e-9, (
+                f"Observed squeezing increased from mode {idx} to {idx + 1}: "
+                f"{observed[idx]:.4f} dB -> {observed[idx + 1]:.4f} dB"
+            )
+
+    def test_vacuum_selected_mode_wigner_is_symmetric(self):
+        xvec = np.linspace(-4.0, 4.0, 60)
+        multi = run_multimode(
+            r=[0.0, 0.0, 0.0],
+            theta=[0.0, 0.0, 0.0],
+            eta_loss=[1.0, 1.0, 1.0],
+            xvec=xvec,
+            wigner_mode=1,
+        )
+
+        assert multi.wigner is not None
+        assert np.allclose(multi.wigner, multi.wigner[::-1, ::-1], atol=1e-6)

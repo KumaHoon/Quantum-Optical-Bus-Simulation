@@ -40,6 +40,9 @@ jobs:
       - name: Generate dashboard gallery
         run: python scripts/generate_dashboard_gallery.py
 
+      - name: Generate advanced dashboard gallery
+        run: python scripts/generate_advanced_dashboard_gallery.py
+
       - name: Upload gallery artifacts
         uses: actions/upload-artifact@v4
         with:

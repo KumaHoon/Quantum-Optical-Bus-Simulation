@@ -123,6 +123,24 @@ streamlit run src/quantum_optical_bus/calibration_app.py
 | Generate Gallery Images | `python scripts/generate_dashboard_gallery.py` |
 | Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
 
+### Task Runner
+
+This repository includes a minimal `Makefile`:
+
+```bash
+make test   # run pytest
+make lint   # lightweight checks (python -m compileall src tests)
+make app    # launch Streamlit dashboard
+```
+
+If `make` is unavailable (common on Windows shells), run equivalent commands directly:
+
+```bash
+python -m pytest -q
+python -m compileall src tests
+streamlit run src/quantum_optical_bus/calibration_app.py
+```
+
 ---
 
 ## 📐 Model Definitions and Assumptions
@@ -209,8 +227,16 @@ Tests run on **Ubuntu, Windows, and macOS** via GitHub Actions:
 
 ```bash
 pip install -e ".[test]"
-pytest tests/ -v
+python -m pytest -q
 ```
+
+You can also use:
+
+```bash
+make test
+```
+
+Roadmap and phased acceptance criteria are documented in `docs/ROADMAP.md`.
 
 ---
 
