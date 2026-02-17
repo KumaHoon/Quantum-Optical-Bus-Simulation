@@ -104,6 +104,17 @@ streamlit run src/quantum_optical_bus/calibration_app.py
 
 Open **http://localhost:8501** and use the sidebar sliders to adjust pump power, phase, and loss — watch the quantum state update in real-time.
 
+### Docker Quick Start
+
+Tested for Docker runtime with **Python 3.10** (Strawberry Fields compatibility).
+
+```bash
+docker build .
+docker compose up --build
+```
+
+Then open **http://localhost:8501**.
+
 <details>
 <summary>🇯🇵 日本語</summary>
 
