@@ -3,7 +3,7 @@ name = "quantum-optical-bus-simulation"
 version = "0.1.0"
 description = "Hybrid quantum-classical calibration dashboard for squeezed-light TDM optical buses"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.11"
 dependencies = [
     "numpy",
     "scipy",

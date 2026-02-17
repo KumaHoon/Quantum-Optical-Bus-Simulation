@@ -239,6 +239,7 @@ We model single-mode squeezing and loss using standard continuous-variable (Gaus
 ## 🧪 Testing & CI
 
 Tests run on **Ubuntu, Windows, and macOS** via GitHub Actions:
+Tested on **Python 3.10** due to Strawberry Fields support.
 
 ```bash
 pip install -e ".[test]"
