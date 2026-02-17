@@ -10,6 +10,8 @@ Outputs:
     assets/dashboard_digital_twin.png
 """
 
+# ruff: noqa: E402
+
 import sys
 import pathlib
 

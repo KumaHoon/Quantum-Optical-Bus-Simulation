@@ -6,7 +6,7 @@ Returns the fundamental mode profile, effective index, and mode area.
 Falls back to an analytical Gaussian mock if Meep is unavailable.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np

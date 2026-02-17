@@ -11,6 +11,8 @@ Usage:
     python scripts/generate_calibration_demo.py
 """
 
+# ruff: noqa: E402
+
 import sys
 import pathlib
 

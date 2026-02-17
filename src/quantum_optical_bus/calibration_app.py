@@ -9,6 +9,8 @@ Run with:
     streamlit run src/quantum_optical_bus/calibration_app.py
 """
 
+# ruff: noqa: E402
+
 import sys
 import pathlib
 
@@ -28,11 +30,10 @@ import quantum_optical_bus.compat  # noqa: F401, E402
 
 import io
 import contextlib
-from math import comb, factorial
+from math import factorial
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import streamlit as st
 
 from quantum_optical_bus.hardware import run_hardware_simulation, WaveguideConfig

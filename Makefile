@@ -4,6 +4,8 @@ test:
 	python -m pytest -q
 
 lint:
+	ruff format --check .
+	ruff check .
 	python -m compileall src tests
 
 app:

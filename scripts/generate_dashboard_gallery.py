@@ -11,7 +11,10 @@ Outputs to assets/:
     dashboard_decoherence.png  — Loss Channel / Decoherence demo
 """
 
-import sys, pathlib
+# ruff: noqa: E402
+
+import pathlib
+import sys
 
 # Ensure package is importable
 _SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
@@ -23,7 +26,6 @@ import quantum_optical_bus.compat  # noqa: F401
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.patches import FancyArrowPatch
 
 from quantum_optical_bus.hardware import run_hardware_simulation, WaveguideConfig
 from quantum_optical_bus.interface import calculate_squeezing
@@ -90,7 +92,7 @@ def scenario_vacuum():
     cfg = WaveguideConfig()
     n_eff, mode_area, ez_data, extent = run_hardware_simulation(cfg)
     ax0 = fig.add_subplot(gs[:, 0])
-    im = ax0.imshow(ez_data, extent=extent, cmap="RdBu", origin="lower", aspect="auto")
+    ax0.imshow(ez_data, extent=extent, cmap="RdBu", origin="lower", aspect="auto")
     ax0.set_title("Phase 1 · Waveguide Mode", color=ACCENT, fontsize=12, fontweight="bold")
     ax0.set_xlabel("x (μm)")
     ax0.set_ylabel("y (μm)")
@@ -250,7 +252,7 @@ def scenario_calibration():
     tanh_r = np.tanh(r)
     cosh_r = np.cosh(r)
     probs = np.zeros(max_n + 1)
-    from math import comb, factorial
+    from math import factorial
 
     for n in range(0, max_n + 1, 2):
         k = n // 2

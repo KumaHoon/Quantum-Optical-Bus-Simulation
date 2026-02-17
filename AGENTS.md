@@ -18,6 +18,8 @@ make lint
 If `make` is unavailable (common on Windows), use:
 ```bash
 python -m pytest -q
+python -m ruff format --check .
+python -m ruff check .
 streamlit run src/quantum_optical_bus/calibration_app.py
 python -m compileall src tests
 ```
