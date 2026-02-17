@@ -60,41 +60,9 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* --- global --- */
-    .block-container {padding-top: 1.5rem;}
-
-    /* sidebar header */
-    [data-testid="stSidebar"] {background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);}
-    [data-testid="stSidebar"] * {color: #c9d1d9 !important;}
-
-    /* metric cards */
-    [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #1a1f2e 0%, #0d1117 100%);
-        border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 16px 20px;
-    }
-    [data-testid="stMetricValue"] {color: #58a6ff !important; font-size: 1.6rem !important;}
-    [data-testid="stMetricLabel"] {color: #8b949e !important;}
-
-    /* formula box */
-    .formula-box {
-        background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
-        border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 24px 28px;
-        margin: 8px 0;
-    }
-
-    /* section dividers */
-    .section-label {
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #8b949e;
-        margin-bottom: 4px;
-    }
+    .block-container {padding-top: 1.25rem; padding-bottom: 1.25rem;}
+    [data-testid="stSidebar"] {min-width: 320px; max-width: 360px;}
+    code, pre code {font-size: 0.9rem;}
     </style>
     """,
     unsafe_allow_html=True,
