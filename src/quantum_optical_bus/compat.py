@@ -9,9 +9,11 @@ in newer Python / SciPy versions.
 import sys
 from unittest.mock import MagicMock
 
-# Patch 1: Mock pkg_resources (missing in Python 3.14+ / recent setuptools)
-if "pkg_resources" not in sys.modules:
-    sys.modules["pkg_resources"] = MagicMock()
+# Patch 1: Provide pkg_resources fallback only when import is unavailable.
+try:
+    import pkg_resources  # noqa: F401
+except ImportError:
+    sys.modules.setdefault("pkg_resources", MagicMock())
 
 # Patch 2: Fix scipy.integrate.simps removal (removed in SciPy 1.14+)
 import scipy.integrate
