@@ -1,0 +1,31 @@
+n_modes: 5
+squeezing_r: [0.8, 0.8, 0.8, 0.8, 0.8]
+squeezing_phi: [0.0, 0.0, 0.0, 0.0, 0.0]
+phase_shifts: [0.0, 0.1, 0.2, 0.3, 0.4]
+loss: [0.98, 0.98, 0.98, 0.98, 0.98]
+couplings:
+  - i: 0
+    j: 1
+    theta: 0.32
+    phi: 0.0
+    eta_loss: 0.99
+  - i: 1
+    j: 2
+    theta: 0.32
+    phi: 0.0
+    eta_loss: 0.99
+  - i: 2
+    j: 3
+    theta: 0.32
+    phi: 0.0
+    eta_loss: 0.99
+  - i: 3
+    j: 4
+    theta: 0.32
+    phi: 0.0
+    eta_loss: 0.99
+  - i: 4
+    j: 0
+    theta: 0.32
+    phi: 0.0
+    eta_loss: 0.99

@@ -132,6 +132,12 @@ streamlit run src/quantum_optical_bus/calibration_app.py
 | Generate Advanced Gallery Images | `python scripts/generate_advanced_dashboard_gallery.py` |
 | Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
 
+Topology config example:
+
+```bash
+python -c "from quantum_optical_bus.tdm_topology import simulate_topology; print(simulate_topology('examples/topology_chain.json').observed_sq_db)"
+```
+
 ### Task Runner
 
 This repository includes a minimal `Makefile`:
