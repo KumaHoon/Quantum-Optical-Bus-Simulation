@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Quantum Optical Bus Simulation"
+type: software
+authors:
+  - family-names: "Kim"
+    given-names: "Sanghoon"
+    alias: "KumaHoon"
+repository-code: "https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation"
+url: "https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation"
+version: "0.1.0"
+date-released: 2026-02-17
+preferred-citation:
+  type: software
+  authors:
+    - family-names: "Kim"
+      given-names: "Sanghoon"
+      alias: "KumaHoon"
+  title: "Quantum Optical Bus Simulation"
+  version: "0.1.0"
+  date-released: 2026-02-17
+  repository-code: "https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation"
+  url: "https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation"
