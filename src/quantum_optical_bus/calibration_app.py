@@ -318,6 +318,91 @@ def _run_quantum(r: float, theta: float, eta: float):
     return res.W, res.mean_photon, res.var_x, res.var_p, res.observed_sq_db, res.observed_antisq_db
 
 
+@st.cache_data(show_spinner="Running multi-mode simulation â€¦")
+def _run_multimode_cached(
+    n_bins: int,
+    base_r: float,
+    phase_step: float,
+    end_loss_db: float,
+    wigner_mode: int,
+):
+    loss_db = np.linspace(0.0, end_loss_db, n_bins)
+    eta = db_to_eta(loss_db)
+    r_vec = np.full(n_bins, base_r, dtype=float)
+    theta_vec = np.arange(n_bins, dtype=float) * phase_step
+    result = run_multimode(
+        r=r_vec,
+        theta=theta_vec,
+        eta_loss=eta,
+        n_modes=n_bins,
+        wigner_mode=wigner_mode,
+        xvec=xvec,
+    )
+    return loss_db, result
+
+
+@st.cache_data(show_spinner="Running topology simulation â€¦")
+def _run_topology_cached(config: dict):
+    return simulate_topology(config)
+
+
+@st.cache_data(show_spinner="Running digital twin fit + control sweep â€¦")
+def _run_digital_twin_cached(
+    n_points: int,
+    eta_true: float,
+    loss_true: float,
+    noise_x: float,
+    noise_p: float,
+    seed: int,
+    latency_max: int,
+):
+    rng = np.random.default_rng(seed)
+    powers = np.linspace(5.0, 250.0, n_points)
+    r_true = eta_true * np.sqrt(powers)
+    trans_true = float(db_to_eta(loss_true))
+    var_x_true = trans_true * (0.5 * np.exp(-2.0 * r_true)) + (1.0 - trans_true) * 0.5
+    var_p_true = trans_true * (0.5 * np.exp(2.0 * r_true)) + (1.0 - trans_true) * 0.5
+
+    data = {
+        "timestamp": np.arange(n_points, dtype=float),
+        "pump_power_mw": powers,
+        "measured_var_x": var_x_true + rng.normal(0.0, noise_x, size=n_points),
+        "measured_var_p": var_p_true + rng.normal(0.0, noise_p, size=n_points),
+        "estimated_loss_db": np.full(n_points, max(loss_true - 0.6, 0.1), dtype=float),
+    }
+
+    eta_hat, loss_hat, fit_diag = fit_eta_and_loss(data, model="variance")
+    r_hat = eta_hat * np.sqrt(powers)
+    trans_hat = float(db_to_eta(loss_hat))
+    var_x_hat = trans_hat * (0.5 * np.exp(-2.0 * r_hat)) + (1.0 - trans_hat) * 0.5
+
+    phase_path = simulate_phase_drift(T=260, step_sigma=0.015, drift_rate=0.0015, seed=seed + 11)
+    latencies = np.arange(0, latency_max + 1, dtype=int)
+    rms_errors = np.zeros_like(latencies, dtype=float)
+    retention = np.zeros_like(latencies, dtype=float)
+    for idx, latency in enumerate(latencies):
+        ctl = apply_feedback_with_latency(
+            latency_steps=int(latency),
+            true_phase=phase_path,
+            measurement_sigma=0.002,
+            seed=seed + 17,
+        )
+        rms_errors[idx] = ctl["rms_residual_phase_error"]
+        retention[idx] = ctl["mean_retention_proxy"]
+
+    return {
+        "powers": powers,
+        "measured_var_x": data["measured_var_x"],
+        "fitted_var_x": var_x_hat,
+        "eta_hat": eta_hat,
+        "loss_hat": loss_hat,
+        "fit_diag": fit_diag,
+        "latencies": latencies,
+        "rms_errors": rms_errors,
+        "retention": retention,
+    }
+
+
 W, mean_photon, var_x, var_p, observed_sq_db, observed_antisq_db = _run_quantum(
     r_param, phase_rad, eta_loss
 )
@@ -475,15 +560,13 @@ with tab_noise:
 st.markdown("---")
 st.markdown("### Phase 4 - Advanced Simulation + Digital Twin")
 
-tab_mm, tab_topology, tab_twin = st.tabs(
-    ["Multi-mode / Time-bin", "Topology Simulator", "Digital Twin Fit + Control"]
-)
+tab_mm, tab_topology, tab_twin = st.tabs(["Multi-mode", "Topology", "Digital Twin + Control"])
 
 with tab_mm:
     col_mm_ctrl, col_mm_plot = st.columns([1, 2])
 
     with col_mm_ctrl:
-        mm_bins = st.slider("Number of bins", 1, 12, 4, key="mm_bins")
+        mm_bins = st.slider("Number of bins", 1, 10, 4, key="mm_bins")
         mm_base_r = st.slider(
             "Base squeezing r", 0.0, 2.0, float(min(r_param, 2.0)), 0.01, key="mm_base_r"
         )
@@ -498,20 +581,16 @@ with tab_mm:
         mm_end_loss_db = st.slider("End-bin loss (dB)", 0.0, 8.0, 2.0, 0.1, key="mm_end_loss_db")
         mm_wigner_mode = st.slider("Wigner mode index", 0, mm_bins - 1, 0, key="mm_wigner_mode")
 
-    mm_loss_db = np.linspace(0.0, mm_end_loss_db, mm_bins)
-    mm_eta = db_to_eta(mm_loss_db)
-    mm_r = np.full(mm_bins, mm_base_r, dtype=float)
-    mm_theta = np.arange(mm_bins, dtype=float) * mm_phase_step
-    mm_result = run_multimode(
-        r=mm_r,
-        theta=mm_theta,
-        eta_loss=mm_eta,
-        n_modes=mm_bins,
-        wigner_mode=mm_wigner_mode,
-        xvec=xvec,
+    mm_loss_db, mm_result = _run_multimode_cached(
+        mm_bins, mm_base_r, mm_phase_step, mm_end_loss_db, mm_wigner_mode
     )
 
     with col_mm_plot:
+        mm_m1, mm_m2, mm_m3 = st.columns(3)
+        mm_m1.metric("Modes", f"{mm_bins}")
+        mm_m2.metric("Avg observed sq", f"{float(np.mean(mm_result.observed_sq_db)):.2f} dB")
+        mm_m3.metric("Mean photons/bin", f"{float(np.mean(mm_result.mean_photon)):.2f}")
+
         fig_mm, axs_mm = plt.subplots(1, 2, figsize=(11, 4.2))
         bins = np.arange(mm_bins)
         axs_mm[0].plot(
@@ -567,8 +646,30 @@ with tab_mm:
 
 with tab_topology:
     col_top_ctrl, col_top_plot = st.columns([1, 2])
+
+    builtin_topology_template = {
+        "n_modes": 4,
+        "couplings": [
+            {"i": 0, "j": 1},
+            {"i": 1, "j": 2},
+            {"i": 2, "j": 3},
+        ],
+    }
+
     with col_top_ctrl:
-        top_n = st.slider("Topology modes", 2, 10, 4, key="top_n")
+        top_source = st.selectbox(
+            "Topology preset",
+            ["Built-in chain example", "Custom chain"],
+            key="top_source",
+        )
+        top_n = st.slider(
+            "Topology modes",
+            2,
+            10,
+            4,
+            key="top_n",
+            disabled=top_source == "Built-in chain example",
+        )
         top_r = st.slider("Per-mode r", 0.0, 1.5, float(min(r_param, 1.5)), 0.01, key="top_r")
         top_phase_step = st.slider(
             "Per-bin phase shift step (rad)",
@@ -583,6 +684,12 @@ with tab_topology:
             "Per-edge loss (dB)", 0.0, 3.0, 0.2, 0.05, key="top_edge_loss_db"
         )
 
+    if top_source == "Built-in chain example":
+        top_n = int(builtin_topology_template["n_modes"])
+        coupling_pairs = list(builtin_topology_template["couplings"])
+    else:
+        coupling_pairs = [{"i": i, "j": i + 1} for i in range(top_n - 1)]
+
     edge_eta = float(db_to_eta(top_edge_loss_db))
     top_cfg = {
         "n_modes": top_n,
@@ -590,13 +697,20 @@ with tab_topology:
         "phase_shifts": (np.arange(top_n) * top_phase_step).tolist(),
         "loss": [1.0] * top_n,
         "couplings": [
-            {"i": i, "j": i + 1, "theta": top_theta, "phi": 0.0, "eta_loss": edge_eta}
-            for i in range(top_n - 1)
+            {"i": edge["i"], "j": edge["j"], "theta": top_theta, "phi": 0.0, "eta_loss": edge_eta}
+            for edge in coupling_pairs
         ],
     }
-    top_result = simulate_topology(top_cfg)
+    top_result = _run_topology_cached(top_cfg)
 
     with col_top_plot:
+        offdiag_x = top_result.corr_x - np.eye(top_n)
+        offdiag_p = top_result.corr_p - np.eye(top_n)
+        top_m1, top_m2, top_m3 = st.columns(3)
+        top_m1.metric("Modes", f"{top_n}")
+        top_m2.metric("Max |corr_x offdiag|", f"{float(np.max(np.abs(offdiag_x))):.3f}")
+        top_m3.metric("Max |corr_p offdiag|", f"{float(np.max(np.abs(offdiag_p))):.3f}")
+
         fig_top, axs_top = plt.subplots(1, 2, figsize=(11, 4.2))
         im_x = axs_top[0].imshow(top_result.corr_x, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
         axs_top[0].set_title("Corr(X) heatmap")
@@ -643,7 +757,7 @@ with tab_topology:
 with tab_twin:
     col_twin_ctrl, col_twin_plot = st.columns([1, 2])
     with col_twin_ctrl:
-        twin_points = st.slider("Synthetic samples", 20, 180, 70, key="twin_points")
+        twin_points = st.slider("Synthetic samples", 20, 160, 70, key="twin_points")
         twin_eta_true = st.slider("True eta", 0.03, 0.25, 0.11, 0.001, key="twin_eta_true")
         twin_loss_true = st.slider("True loss (dB)", 0.0, 6.0, 1.8, 0.05, key="twin_loss_true")
         twin_noise_x = st.slider("Noise sigma Var(x)", 0.0, 0.02, 0.003, 0.0005, key="twin_noise_x")
@@ -653,65 +767,37 @@ with tab_twin:
         )
         twin_latency_max = st.slider("Max latency steps", 1, 12, 8, key="twin_latency_max")
 
-    rng = np.random.default_rng(int(twin_seed))
-    twin_powers = np.linspace(5.0, 250.0, twin_points)
-    twin_r_true = twin_eta_true * np.sqrt(twin_powers)
-    twin_trans_true = float(db_to_eta(twin_loss_true))
-    twin_var_x_true = (
-        twin_trans_true * (0.5 * np.exp(-2.0 * twin_r_true)) + (1.0 - twin_trans_true) * 0.5
+    twin_result = _run_digital_twin_cached(
+        n_points=int(twin_points),
+        eta_true=float(twin_eta_true),
+        loss_true=float(twin_loss_true),
+        noise_x=float(twin_noise_x),
+        noise_p=float(twin_noise_p),
+        seed=int(twin_seed),
+        latency_max=int(twin_latency_max),
     )
-    twin_var_p_true = (
-        twin_trans_true * (0.5 * np.exp(2.0 * twin_r_true)) + (1.0 - twin_trans_true) * 0.5
-    )
-
-    twin_data = {
-        "timestamp": np.arange(twin_points, dtype=float),
-        "pump_power_mw": twin_powers,
-        "measured_var_x": twin_var_x_true + rng.normal(0.0, twin_noise_x, size=twin_points),
-        "measured_var_p": twin_var_p_true + rng.normal(0.0, twin_noise_p, size=twin_points),
-        "estimated_loss_db": np.full(twin_points, max(twin_loss_true - 0.6, 0.1), dtype=float),
-    }
-    eta_hat, loss_hat, fit_diag = fit_eta_and_loss(twin_data, model="variance")
-
-    twin_r_hat = eta_hat * np.sqrt(twin_powers)
-    twin_trans_hat = float(db_to_eta(loss_hat))
-    twin_var_x_hat = (
-        twin_trans_hat * (0.5 * np.exp(-2.0 * twin_r_hat)) + (1.0 - twin_trans_hat) * 0.5
-    )
-
-    phase_path = simulate_phase_drift(
-        T=260, step_sigma=0.015, drift_rate=0.0015, seed=int(twin_seed) + 11
-    )
-    latencies = np.arange(0, twin_latency_max + 1, dtype=int)
-    rms_errors = []
-    retention = []
-    for lat in latencies:
-        ctl = apply_feedback_with_latency(
-            latency_steps=int(lat),
-            true_phase=phase_path,
-            measurement_sigma=0.002,
-            seed=int(twin_seed) + 17,
-        )
-        rms_errors.append(ctl["rms_residual_phase_error"])
-        retention.append(ctl["mean_retention_proxy"])
 
     with col_twin_plot:
         m1, m2, m3 = st.columns(3)
-        m1.metric("eta (true / fit)", f"{twin_eta_true:.4f} / {eta_hat:.4f}")
-        m2.metric("loss dB (true / fit)", f"{twin_loss_true:.3f} / {loss_hat:.3f}")
-        m3.metric("fit RMSE", f"{fit_diag['rmse']:.5f}")
+        m1.metric("eta (true / fit)", f"{twin_eta_true:.4f} / {twin_result['eta_hat']:.4f}")
+        m2.metric("loss dB (true / fit)", f"{twin_loss_true:.3f} / {twin_result['loss_hat']:.3f}")
+        m3.metric("fit RMSE", f"{twin_result['fit_diag']['rmse']:.5f}")
 
         fig_fit, axs_fit = plt.subplots(1, 2, figsize=(11, 4.2))
         axs_fit[0].scatter(
-            twin_powers,
-            twin_data["measured_var_x"],
+            twin_result["powers"],
+            twin_result["measured_var_x"],
             s=16,
             alpha=0.7,
             color="#58a6ff",
             label="Measured Var(x)",
         )
         axs_fit[0].plot(
-            twin_powers, twin_var_x_hat, color="#f97583", lw=2, label="Fitted model Var(x)"
+            twin_result["powers"],
+            twin_result["fitted_var_x"],
+            color="#f97583",
+            lw=2,
+            label="Fitted model Var(x)",
         )
         axs_fit[0].set_xlabel("Pump power (mW)")
         axs_fit[0].set_ylabel("Variance")
@@ -720,9 +806,19 @@ with tab_twin:
         axs_fit[0].legend(loc="best")
 
         axs_fit[1].plot(
-            latencies, rms_errors, marker="o", color="#f97583", label="RMS residual phase"
+            twin_result["latencies"],
+            twin_result["rms_errors"],
+            marker="o",
+            color="#f97583",
+            label="RMS residual phase",
         )
-        axs_fit[1].plot(latencies, retention, marker="o", color="#3fb950", label="Retention proxy")
+        axs_fit[1].plot(
+            twin_result["latencies"],
+            twin_result["retention"],
+            marker="o",
+            color="#3fb950",
+            label="Retention proxy",
+        )
         axs_fit[1].set_xlabel("Latency steps")
         axs_fit[1].set_title("Latency vs control quality")
         axs_fit[1].grid(True, alpha=0.3)
