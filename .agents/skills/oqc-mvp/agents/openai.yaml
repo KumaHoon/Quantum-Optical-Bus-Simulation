@@ -1,0 +1,7 @@
+﻿interface:
+  display_name: "OQC MVP Builder"
+  short_description: "Build reproducible OQC world-modeling MVP artifacts (plots, HDL waveform, notebooks)."
+  default_prompt: "Use oqc-mvp skill and follow docs/PROJECT_SPEC.md strictly."
+
+policy:
+  allow_implicit_invocation: false
