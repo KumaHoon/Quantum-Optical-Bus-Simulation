@@ -10,7 +10,9 @@ A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware),
 
 The dashboard sweeps pump power from 0 → 200 mW (squeezed ellipse forms), then increases propagation loss from 0 → 2 dB (decoherence restores the circular vacuum shape). **Loss does not change intrinsic *r*; it reduces observed squeezing (post-loss).**
 
-![Demo: Calibration](assets/calibration_demo.gif)
+<p align="center">
+  <img src="assets/calibration_demo.gif" width="950" alt="Calibration demo (power sweep then loss sweep)" />
+</p>
 
 > **Figure 1: Real-time Calibration Simulation.**
 > The GIF shows both **intrinsic squeezing (pre-loss)** — constant for a given pump power — and **observed squeezing (post-loss)** — which decreases as propagation loss increases. This visually verifies the $r \propto \sqrt{P}$ mapping and the decoherence effect of the pure-loss channel.

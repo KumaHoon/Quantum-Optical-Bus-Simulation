@@ -1,4 +1,4 @@
-﻿"""Generate a reproducible GKP toy proxy sweep."""
+"""Generate a reproducible GKP toy proxy sweep."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from pathlib import Path
 
 import matplotlib
 import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.special import erfc
@@ -108,4 +109,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
