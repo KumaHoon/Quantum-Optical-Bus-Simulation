@@ -1,4 +1,4 @@
-"""Generate IEEE-style 2-column advanced dashboard PNG artifacts."""
+﻿"""Generate IEEE-style advanced dashboard PNG artifacts for three workflows."""
 
 from __future__ import annotations
 
@@ -8,15 +8,16 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-from quantum_optical_bus.viz_style import (
+from scripts.viz_style_ieee import (
     AXIS_COLOR,
-    BASE_FONT_SIZE,
     FIGURE_WIDTH_2COL_IN,
     SERIES_BLUE,
     SERIES_ORANGE,
     SERIES_TEAL,
     apply_ieee_style,
     apply_layout,
+    ieee_figsize,
+    save_ieee,
     style_axis,
 )
 
@@ -35,9 +36,11 @@ from quantum_optical_bus.control import simulate_phase_drift, apply_feedback_wit
 ASSETS_DIR = SRC_DIR.parent / "assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
+FIG_SIZE = ieee_figsize(aspect=0.56)
+
 
 def _apply_plot_defaults() -> None:
-    apply_ieee_style(base_font_size=BASE_FONT_SIZE, tick_font_size=9)
+    apply_ieee_style(base_font_size=10, tick_font_size=9)
 
 
 def scenario_multimode() -> None:
@@ -45,13 +48,12 @@ def scenario_multimode() -> None:
 
     xvec = np.linspace(-4.0, 4.0, 120)
     n = 6
-    r = np.full(n, 0.95)
     theta = np.linspace(0.0, 0.6, n)
     loss = np.linspace(0.0, 3.0, n)
     eta = units.db_to_eta(loss)
 
     result = run_multimode(
-        r=r,
+        r=np.full(n, 0.95),
         theta=theta,
         eta_loss=eta,
         n_modes=n,
@@ -59,11 +61,17 @@ def scenario_multimode() -> None:
         xvec=xvec,
     )
 
-    fig, axes = plt.subplots(1, 3, figsize=(FIGURE_WIDTH_2COL_IN, 4.0))
+    fig, axes = plt.subplots(1, 3, figsize=FIG_SIZE)
     ax_sq, ax_var, ax_wig = axes
 
     idx = np.arange(n)
-    ax_sq.plot(idx, result.observed_sq_db, marker="o", color=SERIES_BLUE, label="Observed sq (dB)")
+    ax_sq.plot(
+        idx,
+        result.observed_sq_db,
+        marker="o",
+        color=SERIES_BLUE,
+        label="Observed squeezing (dB)",
+    )
     ax_sq.plot(
         idx,
         result.observed_antisq_db,
@@ -74,40 +82,36 @@ def scenario_multimode() -> None:
     style_axis(
         ax_sq,
         title="Per-bin squeezing metrics",
-        xlabel="Time-bin index",
+        xlabel="Time-bin index (unitless)",
         ylabel="Squeezing (dB)",
     )
     ax_sq.legend(loc="best", fontsize=8)
 
     ax_var.plot(idx, result.var_x, marker="o", color=SERIES_TEAL, label="Var(x)")
     ax_var.plot(idx, result.var_p, marker="o", color=SERIES_ORANGE, label="Var(p)")
-    ax_var.axhline(0.5, color=AXIS_COLOR, ls="--", lw=1.0, label="Shot-noise limit")
+    ax_var.axhline(0.5, color=AXIS_COLOR, ls="--", lw=1.0, label="Vacuum (0.5)")
     style_axis(
         ax_var,
         title="Per-bin quadrature variances",
-        xlabel="Time-bin index",
+        xlabel="Time-bin index (unitless)",
         ylabel="Variance (SNU; vacuum=0.5)",
     )
     ax_var.legend(loc="best", fontsize=8)
 
     cset = ax_wig.contourf(xvec, xvec, result.wigner, levels=40, cmap="RdBu_r")
-    fig.colorbar(cset, ax=ax_wig, fraction=0.046, pad=0.04)
+    ax_wig.figure.colorbar(cset, ax=ax_wig, fraction=0.046, pad=0.04)
     style_axis(
         ax_wig,
-        title="Selected-bin Wigner (bin=2)",
-        xlabel="x",
-        ylabel="p",
+        title="Selected Wigner (bin 2)",
+        xlabel="x (SNU)",
+        ylabel="p (SNU)",
     )
     ax_wig.set_aspect("equal")
 
-    fig.suptitle(
-        "Advanced Tab 1 - Multi-mode / time-bin simulation",
-        fontsize=12,
-        y=0.98,
-    )
+    fig.suptitle("Advanced Tab 1 — Multi-mode / time-bin simulation", fontsize=11, y=0.98)
     apply_layout(fig)
     out = ASSETS_DIR / "dashboard_multimode.png"
-    fig.savefig(out, dpi=300, bbox_inches="tight")
+    save_ieee(fig, out, dpi=300)
     plt.close(fig)
     print(f"[OK] {out}")
 
@@ -133,20 +137,20 @@ def scenario_topology() -> None:
     }
     result = simulate_topology(cfg)
 
-    fig, axes = plt.subplots(1, 3, figsize=(FIGURE_WIDTH_2COL_IN, 4.0))
+    fig, axes = plt.subplots(1, 3, figsize=FIG_SIZE)
     ax_x, ax_p, ax_nei = axes
 
     im0 = ax_x.imshow(result.corr_x, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
     ax_x.set_title("Corr(X)")
-    ax_x.set_xlabel("Time-bin index")
-    ax_x.set_ylabel("Time-bin index")
-    fig.colorbar(im0, ax=ax_x, fraction=0.046, pad=0.04)
+    ax_x.set_xlabel("Time-bin index (unitless)")
+    ax_x.set_ylabel("Time-bin index (unitless)")
+    ax_x.figure.colorbar(im0, ax=ax_x, fraction=0.046, pad=0.04)
 
     im1 = ax_p.imshow(result.corr_p, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
     ax_p.set_title("Corr(P)")
-    ax_p.set_xlabel("Time-bin index")
-    ax_p.set_ylabel("Time-bin index")
-    fig.colorbar(im1, ax=ax_p, fraction=0.046, pad=0.04)
+    ax_p.set_xlabel("Time-bin index (unitless)")
+    ax_p.set_ylabel("Time-bin index (unitless)")
+    ax_p.figure.colorbar(im1, ax=ax_p, fraction=0.046, pad=0.04)
 
     neighbor = np.arange(n - 1)
     ax_nei.plot(
@@ -159,23 +163,20 @@ def scenario_topology() -> None:
     ax_nei.plot(
         neighbor,
         result.neighbor_cov_p,
-        marker="o",
+        marker="s",
         color=SERIES_ORANGE,
         label="Cov(P_i, P_{i+1})",
     )
     ax_nei.axhline(0.0, color=AXIS_COLOR, ls="--", lw=1.0)
-    style_axis(
-        ax_nei,
-        title="Neighbor correlations",
-        xlabel="Neighbor pair index",
-        ylabel="Covariance (SNU)",
-    )
+    ax_nei.set_xlabel("Neighbor pair index (unitless)")
+    ax_nei.set_ylabel("Covariance (SNU)")
+    ax_nei.set_title("Neighbor correlations")
     ax_nei.legend(loc="best", fontsize=8)
 
-    fig.suptitle("Advanced Tab 2 - Topology simulator", fontsize=12, y=0.98)
+    fig.suptitle("Advanced Tab 2 — Topology + BS couplings", fontsize=11, y=0.98)
     apply_layout(fig)
     out = ASSETS_DIR / "dashboard_topology.png"
-    fig.savefig(out, dpi=300, bbox_inches="tight")
+    save_ieee(fig, out, dpi=300)
     plt.close(fig)
     print(f"[OK] {out}")
 
@@ -218,7 +219,7 @@ def scenario_digital_twin() -> None:
         rms.append(ctl["rms_residual_phase_error"])
         retention.append(ctl["mean_retention_proxy"])
 
-    fig, (ax_fit, ax_ctrl) = plt.subplots(1, 2, figsize=(FIGURE_WIDTH_2COL_IN, 4.0))
+    fig, (ax_fit, ax_ctrl) = plt.subplots(1, 2, figsize=FIG_SIZE)
 
     ax_fit.scatter(
         powers,
@@ -233,7 +234,7 @@ def scenario_digital_twin() -> None:
         var_x_hat,
         color=SERIES_ORANGE,
         lw=2,
-        label="Fitted model Var(x)",
+        label="Fitted Var(x)",
     )
     style_axis(
         ax_fit,
@@ -246,38 +247,39 @@ def scenario_digital_twin() -> None:
     )
     ax_fit.legend(loc="best", fontsize=8)
 
-    ax_rms = ax_ctrl.twinx()
-    ax_ctrl.plot(
+    ax_ctrl_left = ax_ctrl
+    ax_ctrl_right = ax_ctrl_left.twinx()
+    ax_ctrl_left.plot(
         latencies,
         rms,
         marker="o",
         color=SERIES_ORANGE,
         label="RMS residual phase error",
     )
-    ax_ctrl.set_ylabel("RMS residual phase error (rad)")
-    ax_ctrl.tick_params(axis="y", colors=SERIES_ORANGE)
-    ax_ctrl.set_xlabel("Latency steps")
+    ax_ctrl_left.set_xlabel("Latency steps")
+    ax_ctrl_left.set_ylabel("RMS residual phase error (rad)", color=SERIES_ORANGE)
+    ax_ctrl_left.tick_params(axis="y", colors=SERIES_ORANGE)
 
-    ax_rms.plot(
+    ax_ctrl_right.plot(
         latencies,
         retention,
         marker="s",
         color=SERIES_BLUE,
         label="Retention proxy",
     )
-    ax_rms.set_ylabel("Retention proxy (unitless)")
-    ax_rms.tick_params(axis="y", colors=SERIES_BLUE)
+    ax_ctrl_right.set_ylabel("Retention proxy (unitless)", color=SERIES_BLUE)
+    ax_ctrl_right.tick_params(axis="y", colors=SERIES_BLUE)
+    ax_ctrl_left.set_title("Latency sweep: control quality")
 
-    lines_left, labels_left = ax_ctrl.get_legend_handles_labels()
-    lines_right, labels_right = ax_rms.get_legend_handles_labels()
-    ax_ctrl.legend(lines_left + lines_right, labels_left + labels_right, loc="best", fontsize=8)
-    style_axis(ax_ctrl, title="Control trend", xlabel="Latency steps")
-    ax_ctrl.grid(alpha=0.25)
+    lines_left, labels_left = ax_ctrl_left.get_legend_handles_labels()
+    lines_right, labels_right = ax_ctrl_right.get_legend_handles_labels()
+    ax_ctrl_left.legend(lines_left + lines_right, labels_left + labels_right, loc="best", fontsize=8)
+    ax_ctrl_left.grid(alpha=0.25)
 
-    fig.suptitle("Advanced Tab 3 - Digital twin fit + control", fontsize=12, y=0.98)
+    fig.suptitle("Advanced Tab 3 — Digital twin fit + latency control", fontsize=11, y=0.98)
     apply_layout(fig)
     out = ASSETS_DIR / "dashboard_digital_twin.png"
-    fig.savefig(out, dpi=300, bbox_inches="tight")
+    save_ieee(fig, out, dpi=300)
     plt.close(fig)
     print(f"[OK] {out}")
 

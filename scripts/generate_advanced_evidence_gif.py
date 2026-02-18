@@ -1,4 +1,4 @@
-"""Generate a compact research-evidence GIF for advanced dashboard documentation."""
+﻿"""Generate a compact research-evidence GIF for advanced dashboard documentation."""
 
 from __future__ import annotations
 
@@ -40,26 +40,24 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT,
         help="Output GIF path (default: assets/advanced_evidence.gif).",
     )
-    parser.add_argument(
-        "--fps", type=float, default=10.0, help="Output frame rate (default: 10.0)."
-    )
+    parser.add_argument("--fps", type=float, default=9.0, help="Output frame rate.")
     parser.add_argument(
         "--hold-seconds",
         type=float,
-        default=1.75,
-        help="Seconds each slide is held (default: 1.75).",
+        default=1.7,
+        help="Seconds each slide is held (default: 1.7).",
     )
     parser.add_argument(
         "--crossfade-seconds",
         type=float,
-        default=0.6,
-        help="Duration of each crossfade transition in seconds (default: 0.6).",
+        default=0.65,
+        help="Duration of each crossfade transition in seconds.",
     )
     parser.add_argument(
         "--max-width",
         type=int,
         default=950,
-        help="Maximum output frame width before resizing (default: 950).",
+        help="Maximum output frame width before resizing.",
     )
     parser.add_argument(
         "--label-size",
@@ -67,12 +65,7 @@ def parse_args() -> argparse.Namespace:
         default=20,
         help="Corner label font size (default: 20).",
     )
-    parser.add_argument(
-        "--gif-colors",
-        type=int,
-        default=144,
-        help="Palette colors for GIF quantization (default: 144).",
-    )
+    parser.add_argument("--gif-colors", type=int, default=144, help="Palette colors for GIF quantization.")
     return parser.parse_args()
 
 
@@ -110,12 +103,9 @@ def _label_slide(canvas: Image.Image, text: str, label_size: int) -> None:
     draw.text((x, y), text, fill=(255, 255, 255, 235), font=font)
 
 
-def _load_and_fit(path: Path, max_w: int, max_h: int, *, fit_mode: str = "inside") -> Image.Image:
+def _load_and_fit(path: Path, max_w: int, max_h: int) -> Image.Image:
     image = Image.open(path).convert("RGB")
     resized = ImageOps.contain(image, (max_w, max_h), method=Image.Resampling.LANCZOS)
-    if fit_mode != "inside":
-        return resized
-
     canvas = Image.new("RGB", (max_w, max_h), "#0d1117")
     x = (max_w - resized.width) // 2
     y = (max_h - resized.height) // 2
@@ -127,19 +117,15 @@ def _compose_sweep_slide(
     left_path: Path,
     right_path: Path,
     target_w: int,
-    panel_pad: int = 10,
+    panel_pad: int = 12,
+    gutter: int = 12,
     title: str = "Control Co-design Sweeps",
 ) -> Image.Image:
-    title_h = 38
-    gutter = 12
+    target_h = 430
+    title_h = 34
     panel_w = max(1, (target_w - 2 * panel_pad - gutter) // 2)
-
-    # Leave room for one row of tiles plus title.
-    panel_h = 360
-    if panel_h * 1.0 < 1.0:
-        panel_h = 320
-    canvas_h = title_h + panel_pad * 2 + panel_h
-    canvas = Image.new("RGB", (target_w, canvas_h), "#0d1117")
+    panel_h = target_h - title_h - panel_pad * 2
+    canvas = Image.new("RGB", (target_w, target_h), "#0d1117")
 
     try:
         title_font = ImageFont.truetype("DejaVuSans.ttf", 24)
@@ -166,23 +152,23 @@ def _compose_single_slide(
     path: Path,
     target_w: int,
     target_h: int,
-    title: str | None = None,
+    title: str,
 ) -> Image.Image:
     canvas = Image.new("RGB", (target_w, target_h), "#0d1117")
-    image = _load_and_fit(path, target_w, target_h)
+    image = _load_and_fit(path, target_w, target_h - 34)
     x = (target_w - image.width) // 2
-    y = (target_h - image.height) // 2
+    y = (target_h - image.height + 6) // 2
     canvas.paste(image, (x, y))
-    if title:
-        draw = ImageDraw.Draw(canvas)
-        try:
-            font = ImageFont.truetype("DejaVuSans.ttf", 22)
-        except OSError:
-            font = ImageFont.load_default()
-        title_bbox = draw.textbbox((0, 0), title, font=font)
-        tw = title_bbox[2] - title_bbox[0]
-        draw.rectangle((12, 6, 16 + tw, 32), fill=(13, 17, 23))
-        draw.text((14, 8), title, fill=(200, 209, 217), font=font)
+
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", 22)
+    except OSError:
+        font = ImageFont.load_default()
+    draw = ImageDraw.Draw(canvas)
+    title_bbox = draw.textbbox((0, 0), title, font=font)
+    tw = title_bbox[2] - title_bbox[0]
+    draw.rectangle((12, 6, 16 + tw, 32), fill=(13, 17, 23))
+    draw.text((14, 8), title, fill=(200, 209, 217), font=font)
     return canvas
 
 
@@ -199,14 +185,14 @@ def build_slides(config: RenderConfig) -> list[Image.Image]:
         path=gkp,
         target_w=config.max_width,
         target_h=410,
-        title="Fault Tolerance / GKP Proxy",
+        title="Fault tolerance / GKP proxy",
     )
     _label_slide(slide2, "Evidence 2", config.label_size)
     slide3 = _compose_single_slide(
         path=drift,
         target_w=config.max_width,
         target_h=500,
-        title="Stability / 24h Drift Automation",
+        title="Stability / 24h drift automation",
     )
     _label_slide(slide3, "Evidence 3", config.label_size)
     slides.extend([slide1, slide2, slide3])

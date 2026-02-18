@@ -1,10 +1,9 @@
-"""Generate a short crossfading scenario gallery GIF from dashboard snapshots."""
+﻿"""Generate a crossfading scenario gallery GIF from dashboard snapshots."""
 
 from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -18,9 +17,9 @@ DEFAULT_OUTPUT = ASSETS_DIR / "scenario_gallery.gif"
 
 
 SCENARIO_IMAGES = (
-    ("1", ASSETS_DIR / "dashboard_vacuum.png"),
-    ("2", ASSETS_DIR / "dashboard_calibration.png"),
-    ("3", ASSETS_DIR / "dashboard_decoherence.png"),
+    ("Scenario 1", ASSETS_DIR / "dashboard_vacuum.png"),
+    ("Scenario 2", ASSETS_DIR / "dashboard_calibration.png"),
+    ("Scenario 3", ASSETS_DIR / "dashboard_decoherence.png"),
 )
 
 
@@ -44,23 +43,18 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT,
         help="Output GIF path (default: assets/scenario_gallery.gif).",
     )
-    parser.add_argument(
-        "--fps",
-        type=float,
-        default=10.0,
-        help="GIF frame rate (default: 10.0).",
-    )
+    parser.add_argument("--fps", type=float, default=9.0, help="GIF frame rate.")
     parser.add_argument(
         "--hold-seconds",
         type=float,
-        default=1.75,
-        help="Seconds each scenario image is held (default: 1.75).",
+        default=1.8,
+        help="Seconds each scenario image is held (default: 1.8).",
     )
     parser.add_argument(
         "--crossfade-seconds",
         type=float,
-        default=0.6,
-        help="Duration of each crossfade transition in seconds (default: 0.6).",
+        default=0.65,
+        help="Duration of each crossfade transition in seconds.",
     )
     parser.add_argument(
         "--max-width",
@@ -71,15 +65,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--label-size",
         type=int,
-        default=26,
-        help="Corner label font size (default: 26).",
+        default=24,
+        help="Corner label font size (default: 24).",
     )
-    parser.add_argument(
-        "--colors",
-        type=int,
-        default=144,
-        help="GIF palette size (default: 144).",
-    )
+    parser.add_argument("--colors", type=int, default=144, help="GIF palette size.")
     parser.add_argument(
         "--save-mp4",
         action="store_true",
@@ -101,23 +90,22 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
     if image.width > target_width:
         scale = target_width / image.width
         image = image.resize(
-            (target_width, max(1, int(image.height * scale))),
+            (target_width, max(1, int(image.height * scale)),),
             Image.Resampling.LANCZOS,
         )
 
-    label_font: ImageFont.FreeTypeFont | ImageFont.ImageFont
     try:
         label_font = ImageFont.truetype("DejaVuSans.ttf", size=label_size)
     except OSError:
         label_font = ImageFont.load_default()
 
     draw = ImageDraw.Draw(image)
-    text = f"Scenario {label}"
+    text = label
     text_bbox = draw.textbbox((0, 0), text, font=label_font)
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
     pad = max(8, label_size // 3)
-    x = 14
+    x = 12
     y = image.height - text_height - (pad * 2) - 4
 
     bg_left = x - 6
@@ -126,13 +114,12 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
     bg_bottom = y + text_height + 8
     draw.rounded_rectangle(
         (bg_left, bg_top, bg_right, bg_bottom),
-        radius=label_size // 3,
-        fill=(0, 0, 0, 170),
+        radius=max(6, label_size // 4),
+        fill=(0, 0, 0, 175),
         outline=(255, 255, 255, 120),
-        width=2,
+        width=1,
     )
     draw.text((x, y), text, fill=(255, 255, 255, 235), font=label_font)
-
     return image
 
 
@@ -187,7 +174,6 @@ def optimize_and_save(
         raise RuntimeError("No frames generated.")
 
     config.output.parent.mkdir(parents=True, exist_ok=True)
-
     quantized = [
         frame.convert("RGB").quantize(
             colors=config.colors,
@@ -208,12 +194,13 @@ def optimize_and_save(
         include_color_table=True,
     )
     print(f"[OK] Saved GIF: {config.output} ({config.output.stat().st_size} bytes)")
-
     if config.save_mp4:
         save_mp4_if_available(config.output)
 
 
 def save_mp4_if_available(gif_path: Path) -> None:
+    import shutil
+
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         print("[INFO] ffmpeg not available; skipping MP4 generation.")
@@ -233,10 +220,9 @@ def save_mp4_if_available(gif_path: Path) -> None:
             print("[WARN] GIF has no frames; skipped MP4.")
             return
 
-        fps = 10.0
-        imageio.mimsave(mp4_path, frames, fps=fps)
+        imageio.mimsave(mp4_path, frames, fps=9.0)
         print(f"[OK] Also saved MP4: {mp4_path}")
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:
         print(f"[WARN] MP4 generation failed: {exc}")
 
 
@@ -244,7 +230,6 @@ def main() -> None:
     args = parse_args()
     ensure_images_exist()
 
-    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
     raw_images = [
         load_labeled_image(path, label, args.max_width, args.label_size)
         for label, path in SCENARIO_IMAGES

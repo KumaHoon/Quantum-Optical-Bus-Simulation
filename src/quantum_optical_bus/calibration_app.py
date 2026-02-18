@@ -241,11 +241,11 @@ with col_formula:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Live P → r curve
-st.markdown("#### Power-Squeezing Calibration Curve  *(intrinsic, pre-loss)*")
 powers_curve = np.linspace(0, 500, 300)
 r_curve = calculate_squeezing(powers_curve)
 db_curve = -10 * np.log10(np.exp(-2 * r_curve))
 
+st.markdown("#### Power-Squeezing Calibration Curve")
 fig_cal, ax_cal = plt.subplots(figsize=(8, 3.5))
 ax_cal.plot(powers_curve, db_curve, color="#58a6ff", linewidth=2, label=r"$-10\log_{10}(e^{-2r})$")
 ax_cal.axvline(
@@ -257,10 +257,10 @@ ax_cal.axvline(
 )
 ax_cal.axhline(intrinsic_squeezing_db, color="#f97583", linestyle=":", linewidth=0.8, alpha=0.6)
 ax_cal.scatter([pump_power_mw], [intrinsic_squeezing_db], color="#f97583", zorder=5, s=60)
-ax_cal.set_xlabel("Pump power P (mW)")
-ax_cal.set_ylabel("Intrinsic squeezing (pre-loss) (dB)")
-ax_cal.set_title(r"Calibration Curve:  $r = \eta\sqrt{P}$  (intrinsic, pre-loss)")
-ax_cal.legend(loc="lower right")
+ax_cal.set_xlabel("Pump power $P$ (mW)")
+ax_cal.set_ylabel("Intrinsic squeezing (pre-loss), dB")
+ax_cal.set_title(r"Calibration curve: $r = \eta\sqrt{P}$")
+ax_cal.legend(loc="lower right", fontsize=8)
 ax_cal.grid(True, alpha=0.25)
 fig_cal.tight_layout()
 st.pyplot(fig_cal)
@@ -384,8 +384,8 @@ with tab_wigner:
     with col_wig:
         fig_w, ax_w = plt.subplots(figsize=(6, 5))
         cf = ax_w.contourf(xvec, xvec, W, levels=60, cmap="RdBu_r")
-        ax_w.set_xlabel(r"$x$ (position quadrature)")
-        ax_w.set_ylabel(r"$p$ (momentum quadrature)")
+        ax_w.set_xlabel(r"$x$ (SNU)")
+        ax_w.set_ylabel(r"$p$ (SNU)")
         title_parts = f"Wigner Function  (r={r_param:.3f}, \u03b8={phase_rad:.2f})"
         if loss_db_cm > 0:
             title_parts += f"  |  loss={total_loss_db:.2f} dB"
@@ -575,7 +575,7 @@ with tab_mm:
             label="Observed anti-sq (dB)",
         )
         axs_mm[0].set_xlabel("Time bin index")
-        axs_mm[0].set_ylabel("dB")
+        axs_mm[0].set_ylabel("Squeezing (dB)")
         axs_mm[0].set_title("Per-bin squeezing metrics")
         axs_mm[0].grid(True, alpha=0.3)
         axs_mm[0].legend(loc="best")
@@ -584,7 +584,7 @@ with tab_mm:
         axs_mm[1].plot(bins, mm_result.var_p, marker="o", color="#f97583", label="Var(p)")
         axs_mm[1].axhline(0.5, color="#8b949e", ls="--", lw=1, label="Vacuum")
         axs_mm[1].set_xlabel("Time bin index")
-        axs_mm[1].set_ylabel("Variance")
+        axs_mm[1].set_ylabel("Variance (SNU; vacuum=0.5)")
         axs_mm[1].set_title("Per-bin quadrature variances")
         axs_mm[1].grid(True, alpha=0.3)
         axs_mm[1].legend(loc="best")
@@ -596,8 +596,8 @@ with tab_mm:
             fig_mm_w, ax_mm_w = plt.subplots(figsize=(4.8, 4.2))
             ax_mm_w.contourf(xvec, xvec, mm_result.wigner, levels=60, cmap="RdBu_r")
             ax_mm_w.set_title(f"Wigner (bin {mm_wigner_mode})")
-            ax_mm_w.set_xlabel("x")
-            ax_mm_w.set_ylabel("p")
+            ax_mm_w.set_xlabel("x (SNU)")
+            ax_mm_w.set_ylabel("p (SNU)")
             ax_mm_w.set_aspect("equal")
             fig_mm_w.tight_layout()
             st.pyplot(fig_mm_w)
@@ -716,8 +716,8 @@ with tab_topology:
                 label="Cov(p_i,p_{i+1})",
             )
             ax_nei.axhline(0.0, color="#8b949e", ls="--", lw=1)
-            ax_nei.set_xlabel("Neighbor pair index i")
-            ax_nei.set_ylabel("Covariance")
+            ax_nei.set_xlabel("Neighbor pair index (unitless)")
+            ax_nei.set_ylabel("Covariance (SNU)")
             ax_nei.set_title("Neighbor correlation metrics")
             ax_nei.grid(True, alpha=0.3)
             ax_nei.legend(loc="best")
@@ -770,8 +770,8 @@ with tab_twin:
             lw=2,
             label="Fitted model Var(x)",
         )
-        axs_fit[0].set_xlabel("Pump power P (mW)")
-        axs_fit[0].set_ylabel("Var(x) (unit, vacuum=0.5)")
+        axs_fit[0].set_xlabel("Pump power $P$ (mW)")
+        axs_fit[0].set_ylabel("Var(x) (SNU; vacuum=0.5)")
         axs_fit[0].set_title("Digital twin fit")
         axs_fit[0].grid(True, alpha=0.3)
         axs_fit[0].legend(loc="best")

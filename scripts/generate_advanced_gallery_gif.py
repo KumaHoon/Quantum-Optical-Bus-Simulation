@@ -1,10 +1,9 @@
-"""Generate a short crossfading advanced gallery GIF from dashboard snapshots."""
+﻿"""Generate a crossfading advanced gallery GIF from dashboard snapshots."""
 
 from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -18,9 +17,9 @@ DEFAULT_OUTPUT = ASSETS_DIR / "advanced_gallery.gif"
 
 
 ADVANCED_IMAGES = (
-    ("1", ASSETS_DIR / "dashboard_multimode.png"),
-    ("2", ASSETS_DIR / "dashboard_topology.png"),
-    ("3", ASSETS_DIR / "dashboard_digital_twin.png"),
+    ("Advanced 1", ASSETS_DIR / "dashboard_multimode.png"),
+    ("Advanced 2", ASSETS_DIR / "dashboard_topology.png"),
+    ("Advanced 3", ASSETS_DIR / "dashboard_digital_twin.png"),
 )
 
 
@@ -44,23 +43,18 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT,
         help="Output GIF path (default: assets/advanced_gallery.gif).",
     )
-    parser.add_argument(
-        "--fps",
-        type=float,
-        default=10.0,
-        help="GIF frame rate (default: 10.0).",
-    )
+    parser.add_argument("--fps", type=float, default=9.0, help="GIF frame rate.")
     parser.add_argument(
         "--hold-seconds",
         type=float,
-        default=1.75,
-        help="Seconds each advanced image is held (default: 1.75).",
+        default=1.8,
+        help="Seconds each advanced image is held (default: 1.8).",
     )
     parser.add_argument(
         "--crossfade-seconds",
         type=float,
-        default=0.6,
-        help="Duration of each crossfade transition in seconds (default: 0.6).",
+        default=0.65,
+        help="Duration of each crossfade transition in seconds.",
     )
     parser.add_argument(
         "--max-width",
@@ -68,18 +62,8 @@ def parse_args() -> argparse.Namespace:
         default=960,
         help="Maximum output frame width before resizing (default: 960).",
     )
-    parser.add_argument(
-        "--label-size",
-        type=int,
-        default=26,
-        help="Corner label font size (default: 26).",
-    )
-    parser.add_argument(
-        "--colors",
-        type=int,
-        default=144,
-        help="GIF palette size (default: 144).",
-    )
+    parser.add_argument("--label-size", type=int, default=24, help="Corner label font size.")
+    parser.add_argument("--colors", type=int, default=144, help="GIF palette size.")
     parser.add_argument(
         "--save-mp4",
         action="store_true",
@@ -92,7 +76,7 @@ def ensure_images_exist() -> None:
     missing = [str(p) for _, p in ADVANCED_IMAGES if not p.exists()]
     if not missing:
         return
-    print("Missing advanced PNGs detected, regenerating advanced gallery images...")
+    print("Missing advanced PNGs detected, regenerating advanced dashboard images...")
     subprocess.run([sys.executable, str(DASHBOARD_SCRIPT)], check=True)
 
 
@@ -101,7 +85,7 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
     if image.width > target_width:
         scale = target_width / image.width
         image = image.resize(
-            (target_width, max(1, int(image.height * scale))),
+            (target_width, max(1, int(image.height * scale)),),
             Image.Resampling.LANCZOS,
         )
 
@@ -111,7 +95,7 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
         label_font = ImageFont.load_default()
 
     draw = ImageDraw.Draw(image)
-    text = f"Advanced {label}"
+    text = label
     text_bbox = draw.textbbox((0, 0), text, font=label_font)
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
@@ -125,10 +109,10 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
     bg_bottom = y + text_height + 8
     draw.rounded_rectangle(
         (bg_left, bg_top, bg_right, bg_bottom),
-        radius=label_size // 3,
-        fill=(0, 0, 0, 170),
+        radius=max(6, label_size // 4),
+        fill=(0, 0, 0, 175),
         outline=(255, 255, 255, 120),
-        width=2,
+        width=1,
     )
     draw.text((x, y), text, fill=(255, 255, 255, 235), font=label_font)
 
@@ -151,9 +135,7 @@ def make_equal_canvas(images: list[Image.Image], bg=(10, 18, 30, 255)) -> list[I
     return framed
 
 
-def build_frames(
-    images: list[Image.Image], config: RenderConfig
-) -> tuple[list[Image.Image], list[int]]:
+def build_frames(images: list[Image.Image], config: RenderConfig) -> tuple[list[Image.Image], list[int]]:
     hold_frames = max(1, int(round(config.hold_seconds * config.fps)))
     fade_frames = max(1, int(round(config.crossfade_seconds * config.fps)))
     frame_duration_ms = max(1, int(1000 / config.fps))
@@ -185,8 +167,6 @@ def optimize_and_save(
     if not frames:
         raise RuntimeError("No frames generated.")
 
-    config.output.parent.mkdir(parents=True, exist_ok=True)
-
     quantized = [
         frame.convert("RGB").quantize(
             colors=config.colors,
@@ -196,6 +176,7 @@ def optimize_and_save(
         for frame in frames
     ]
 
+    config.output.parent.mkdir(parents=True, exist_ok=True)
     quantized[0].save(
         config.output,
         save_all=True,
@@ -213,6 +194,8 @@ def optimize_and_save(
 
 
 def save_mp4_if_available(gif_path: Path) -> None:
+    import shutil
+
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         print("[INFO] ffmpeg not available; skipping MP4 generation.")
@@ -232,10 +215,9 @@ def save_mp4_if_available(gif_path: Path) -> None:
             print("[WARN] GIF has no frames; skipped MP4.")
             return
 
-        fps = 10.0
-        imageio.mimsave(mp4_path, frames, fps=fps)
+        imageio.mimsave(mp4_path, frames, fps=9.0)
         print(f"[OK] Also saved MP4: {mp4_path}")
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:
         print(f"[WARN] MP4 generation failed: {exc}")
 
 
@@ -243,7 +225,6 @@ def main() -> None:
     args = parse_args()
     ensure_images_exist()
 
-    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
     raw_images = [
         load_labeled_image(path, label, args.max_width, args.label_size)
         for label, path in ADVANCED_IMAGES

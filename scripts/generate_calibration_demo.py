@@ -79,8 +79,8 @@ INTRINSIC_COLOR = SERIES_BLUE
 OBSERVED_COLOR = SERIES_ORANGE
 TEXT_COLOR = "#c9d1d9"
 GRID_COLOR = "#30363d"
-CONTOUR_LEVELS = 24
-CAL_LABEL_SIZE = 24
+CONTOUR_LEVELS = 18
+CAL_LABEL_SIZE = 22
 
 
 @dataclass(frozen=True)
@@ -128,17 +128,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-phase1", type=int, default=36, help="Frames in pump sweep phase.")
     parser.add_argument("--n-phase2", type=int, default=24, help="Frames in loss sweep phase.")
     parser.add_argument("--fps", type=float, default=8.0, help="Output frame rate.")
-    parser.add_argument("--dpi", type=int, default=92, help="Figure DPI.")
+    parser.add_argument("--dpi", type=int, default=96, help="Figure DPI.")
     parser.add_argument(
         "--figure-width",
         type=float,
-        default=10.7,
+        default=10.4,
         help="Figure width in inches.",
     )
     parser.add_argument(
         "--figure-height",
         type=float,
-        default=5.55,
+        default=5.75,
         help="Figure height in inches.",
     )
     parser.add_argument(
@@ -233,9 +233,9 @@ def configure_axes() -> tuple[plt.Figure, plt.Axes, plt.Axes, plt.Axes]:
     gs = fig.add_gridspec(
         nrows=2,
         ncols=2,
-        height_ratios=[4.15, 1.25],
+        height_ratios=[4.45, 1.4],
         width_ratios=[1.0, 1.55],
-        hspace=0.20,
+        hspace=0.18,
         wspace=0.06,
     )
     ax_dashboard = fig.add_subplot(gs[0, 0])
@@ -339,7 +339,7 @@ def draw_calibration_panel(
     y_max = float(sq_db.max())
     if y_max <= 0.0:
         y_max = 1.0
-    ax.set_ylim(0.0, y_max * 1.08)
+    ax.set_ylim(0.0, y_max * 1.10)
     ax.set_yticks(np.linspace(0.0, y_max, num=5))
 
     ax.plot(powers, sq_db, color=INTRINSIC_COLOR, lw=1.35, alpha=0.95)
@@ -462,8 +462,9 @@ def draw_dashboard(
         ha="right",
     )
 
-    label_gap = mtrans.ScaledTranslation(0, -6 / 72, fig.dpi_scale_trans)
-    value_gap = mtrans.ScaledTranslation(0, -11 / 72, fig.dpi_scale_trans)
+    intrinsic_label_t = mtrans.ScaledTranslation(0, -4 / 72, fig.dpi_scale_trans)
+    intrinsic_value_t = mtrans.ScaledTranslation(0, -10 / 72, fig.dpi_scale_trans)
+    observed_value_t = mtrans.ScaledTranslation(0, -10 / 72, fig.dpi_scale_trans)
 
     ax.add_patch(
         mpatches.FancyBboxPatch(
@@ -478,7 +479,7 @@ def draw_dashboard(
     )
     ax.text(
         5.0,
-        4.15,
+        4.32,
         "INTRINSIC SQUEEZING (pre-loss)",
         ha="center",
         fontsize=9,
@@ -490,17 +491,17 @@ def draw_dashboard(
         3.78,
         f"{frame.intrinsic_sq_db:.2f} dB",
         ha="center",
-        transform=ax.transData + label_gap,
+        transform=ax.transData + intrinsic_value_t,
         fontsize=CAL_LABEL_SIZE,
         fontweight="bold",
         color=INTRINSIC_COLOR,
     )
     ax.text(
         5.0,
-        3.25,
+        3.42,
         "OBSERVED SQUEEZING (post-loss)",
         ha="center",
-        transform=ax.transData + value_gap,
+        transform=ax.transData + intrinsic_label_t,
         fontsize=9,
         color=AXIS_COLOR,
         fontweight="bold",
@@ -509,7 +510,7 @@ def draw_dashboard(
         5.0,
         2.88,
         f"{frame.observed_sq_db:.2f} dB",
-        transform=ax.transData + label_gap,
+        transform=ax.transData + observed_value_t,
         ha="center",
         fontsize=CAL_LABEL_SIZE,
         fontweight="bold",
@@ -645,7 +646,7 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
     cal_x0 = 0.5 - cal_width / 2.0
     ax_cal.set_position((cal_x0, cal_pos.y0, cal_width, cal_pos.height))
 
-    fig.subplots_adjust(top=0.95, bottom=0.07, left=0.05, right=0.985, hspace=0.20, wspace=0.06)
+    fig.subplots_adjust(top=0.95, bottom=0.05, left=0.055, right=0.985, hspace=0.18, wspace=0.05)
 
     fig.suptitle(
         "Real-time Calibration Simulation",

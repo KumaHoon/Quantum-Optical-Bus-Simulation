@@ -72,11 +72,21 @@ flowchart LR
 | **Topology** | `tdm_topology.py` | `simulate_topology`: ordered BSgate couplings and mode/correlation propagation. |
 | **Estimation** | `estimation.py` | `fit_eta_and_loss`: calibration-only fitting used by digital twin workflow. |
 | **Control** | `control.py` | `apply_feedback_with_latency`: phase-drift recovery and latency control helper. |
+| **HIL Hooks** | `hdl/` | Future deployment boundary for real-time feedback coefficients and timing-aware actuation. |
 | **Compat** | `compat.py` | Dependency patches (pkg_resources, scipy) |
 | **Dashboard** | `calibration_app.py` | Streamlit calibration UI that orchestrates inputs and renders outputs |
 
 The hardware simulation remains a current **display/demo layer** (and future eta-extraction pathway); it does not determine $r$ directly in the current MVP.
 `eta_loss` is currently a placeholder derived from user-entered loss settings (converted in `units.py`), with roadmap work planned to connect overlap-integral-derived transmissivity from hardware.
+
+## Hardware-in-the-Loop Expansion
+
+<p align="center"><img src="docs/figures/hil_expansion.png" width="950" alt="Hardware-in-the-Loop expansion flow" /></p>
+
+The roadmap adds a compact hardware-aware loop:
+- optical data path (laser/OPA/loop/homodyne),
+- control path (ADC/FPGA/DAC/EOM driver),
+- world-model path (logs → `estimation.py` → updated controller coefficients → `hdl/` deployment).
 
 ---
 
@@ -179,6 +189,7 @@ See translation versions in `docs/README.ja.md`, `docs/README.ko.md`, and `docs/
 | Generate Scenario Gallery GIF | `python scripts/generate_scenario_gallery_gif.py` |
 | Generate Advanced Gallery GIF | `python scripts/generate_advanced_gallery_gif.py` |
 | Generate Advanced Evidence GIF | `python scripts/generate_advanced_evidence_gif.py` |
+| Generate HIL Infographic | `python scripts/generate_hil_infographic.py` |
 | Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
 
 Topology config example:
