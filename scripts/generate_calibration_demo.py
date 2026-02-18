@@ -359,9 +359,9 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
 
     ax.add_patch(
         mpatches.FancyBboxPatch(
-            (0.45, 2.8),
+            (0.45, 2.2),
             9.1,
-            2.0,
+            1.7,
             boxstyle="round,pad=0.16",
             facecolor="#fce8e6",
             edgecolor=RED,
@@ -370,7 +370,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
     )
     ax.text(
         5.0,
-        4.45,
+        4.1,
         "INTRINSIC SQUEEZING (pre-loss)",
         ha="center",
         fontsize=10,
@@ -379,7 +379,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
     )
     ax.text(
         5.0,
-        3.95,
+        3.55,
         f"{frame.intrinsic_sq_db:.2f} dB",
         ha="center",
         fontsize=28,
@@ -388,7 +388,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
     )
     ax.text(
         5.0,
-        3.45,
+        2.95,
         "OBSERVED SQUEEZING (post-loss)",
         ha="center",
         fontsize=10,
@@ -397,7 +397,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
     )
     ax.text(
         5.0,
-        2.85,
+        2.5,
         f"{frame.observed_sq_db:.2f} dB",
         ha="center",
         fontsize=28,
@@ -409,7 +409,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
 
     ax.text(
         0.8,
-        1.20,
+        0.8,
         "Transmissivity",
         fontsize=11,
         color=GRAY,
@@ -418,7 +418,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
     eta_color = GREEN if eta > 0.9 else ORANGE if eta > 0.5 else RED
     ax.text(
         5.0,
-        1.2,
+        0.8,
         f"{eta:.4f}",
         fontsize=14,
         fontweight="bold",
@@ -528,16 +528,16 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
     fig.set_size_inches(config.figure_width, config.figure_height)
     fig.suptitle(
         "Real-time Calibration Simulation",
-        fontsize=16,
+        fontsize=18,
         fontweight="bold",
         color=DARK,
-        y=0.98,
+        y=0.99,
     )
     fig.text(
-        0.73,
-        0.94,
+        0.9,
+        0.965,
         "TDM Optical Bus - squeezed-light calibration",
-        ha="center",
+        ha="right",
         fontsize=11,
         color=GRAY,
     )
