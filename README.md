@@ -1,61 +1,54 @@
-# Quantum Optical Bus — Calibration Dashboard
+# Quantum Optical Bus - Calibration Dashboard
 
 [![CI](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml)
 
-A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware), Infinite States (Software)"** — with a **Calibration Dashboard** that maps classical FDTD parameters to continuous-variable (CV) quantum states via a transparent squeezing calibration $r = \eta\sqrt{P}$.
+A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware), Infinite States (Software)"**.  
+It includes a **Calibration Dashboard** that maps classical pump power to continuous-variable (CV) quantum states with an explicit squeezing calibration $r = \eta\sqrt{P}$.
 
 ---
 
-## 🎬 Live Demo
+## Live Demo
 
-The dashboard sweeps pump power from 0 → 200 mW (squeezed ellipse forms), then increases propagation loss from 0 → 2 dB (decoherence restores the circular vacuum shape). **Loss does not change intrinsic *r*; it reduces observed squeezing (post-loss).**
+The dashboard sweeps pump power from 0 to 200 mW (squeezed ellipse forms), then increases propagation loss from 0 to 2 dB (decoherence restores the circular vacuum shape). **Loss does not change intrinsic *r*; it reduces observed squeezing (post-loss).**
 
-<p align="center">
-  <img
-    src="assets/calibration_demo.gif"
-    width="950"
-    alt="Calibration demo (power sweep then loss sweep)"
-    style="display:block; margin: 0 auto;"
-  />
-</p>
+<p align="center"><img src="assets/calibration_demo.gif" width="950" alt="Calibration demo (power sweep then loss sweep)" /></p>
 
 > **Figure 1: Real-time Calibration Simulation.**
-> The GIF shows both **intrinsic squeezing (pre-loss)** — constant for a given pump power — and **observed squeezing (post-loss)** — which decreases as propagation loss increases. This visually verifies the $r \propto \sqrt{P}$ mapping and the decoherence effect of the pure-loss channel.
+> The GIF shows both **intrinsic squeezing (pre-loss)** — constant for a given pump power — and **observed squeezing (post-loss)**, which decreases as propagation loss increases. This visually verifies the $r \propto \sqrt{P}$ mapping and the decoherence effect of the pure-loss channel.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
-    subgraph HW["Phase 1 · Hardware"]
-        A["Meep FDTD / Analytical Mock<br/><code>hardware.py</code>"]
-    end
+    UI["Streamlit UI<br/><code>calibration_app.py</code><br/>Inputs: P, theta, loss_dB, length"]
+    H["Hardware layer<br/><code>hardware.py</code><br/>mode profile + n_eff (display / future eta extraction)"]
+    R["Pump mapping<br/><code>interface.py</code><br/>P → r"]
+    L["Loss mapping<br/><code>units.py</code><br/>total_loss_dB → eta_loss"]
+    Q["Quantum kernel<br/><code>quantum.py</code><br/>Sgate(r), LossChannel(eta_loss)<br/>-> Wigner + covariance metrics"]
+    O["Outputs<br/><code>calibration_app.py</code><br/>visualization + telemetry"]
 
-    subgraph CAL["Phase 2 · Calibration Bridge"]
-        B["r = η√P<br/><code>interface.py</code>"]
-    end
-
-    subgraph QM["Phase 3 · Quantum Result"]
-        C["Strawberry Fields<br/>(Gaussian backend)<br/><code>quantum.py</code>"]
-    end
-
-    A -->|"n_eff, mode profile"| B
-    B -->|"r, θ, η_loss"| C
-    C -->|"Wigner, variances,<br/>observed squeezing"| D["Streamlit Dashboard<br/><code>calibration_app.py</code>"]
-
-    style HW fill:#1a1a2e,stroke:#58a6ff,color:#c9d1d9
-    style CAL fill:#1a1a2e,stroke:#3fb950,color:#c9d1d9
-    style QM fill:#1a1a2e,stroke:#f97583,color:#c9d1d9
+    UI --> R
+    UI --> L
+    UI --> H
+    R --> Q
+    L --> Q
+    Q --> O
+    H --> O
 ```
 
 | Layer | File | Responsibility |
 |-------|------|----------------|
-| **Hardware** | `hardware.py` | LN Ridge Waveguide mode simulation (Meep / analytical mock) |
-| **Interface** | `interface.py` | Pump power → squeezing parameter mapping ($r = \eta\sqrt{P}$) |
-| **Quantum** | `quantum.py` | Single-mode Gaussian circuit (Sgate + LossChannel → Wigner, eigenvalues) |
+| **Hardware** | `hardware.py` | LN ridge waveguide mode profile simulation (Meep / analytical mock). Currently used for display and future eta-extraction research; it does not yet drive the squeezing map in the current MVP. |
+| **Interface** | `interface.py` | Pump power `P → r` via the configured phenomenological mapping ($r = \eta\sqrt{P}$). |
+| **Units** | `units.py` | Converts loss in dB to transmissivity `eta_loss`. |
+| **Quantum** | `quantum.py` | Single-mode Gaussian circuit (`Sgate(r)` + `LossChannel(eta_loss)` → Wigner, eigenvalues). |
 | **Compat** | `compat.py` | Dependency patches (pkg_resources, scipy) |
-| **Dashboard** | `calibration_app.py` | Streamlit calibration UI orchestrating all layers |
+| **Dashboard** | `calibration_app.py` | Streamlit calibration UI that orchestrates inputs and renders outputs |
+
+The hardware simulation remains a current **display/demo layer** (and future eta-extraction pathway); it does not determine $r$ directly in the current MVP.
+`eta_loss` is currently a placeholder derived from user-entered loss settings (converted in `units.py`), with roadmap work planned to connect overlap-integral-derived transmissivity from hardware.
 
 ---
 
@@ -92,9 +85,7 @@ Three tabbed visualizations:
 <details>
 <summary>Scenario Gallery GIF</summary>
 
-<p align="center">
-  <img src="assets/scenario_gallery.gif" width="950" alt="Scenario gallery animation" />
-</p>
+<p align="center"><img src="assets/scenario_gallery.gif" width="950" alt="Scenario gallery animation" /></p>
 
 </details>
 
@@ -109,9 +100,7 @@ Three tabbed visualizations:
 <details>
 <summary>Advanced Gallery GIF</summary>
 
-<p align="center">
-  <img src="assets/advanced_gallery.gif" width="950" alt="Advanced gallery animation" />
-</p>
+<p align="center"><img src="assets/advanced_gallery.gif" width="950" alt="Advanced gallery animation" /></p>
 
 </details>
 
@@ -120,9 +109,7 @@ Three tabbed visualizations:
 <details>
 <summary>Advanced Evidence GIF</summary>
 
-<p align="center">
-  <img src="assets/advanced_evidence.gif" width="950" alt="Advanced evidence summary animation" />
-</p>
+<p align="center"><img src="assets/advanced_evidence.gif" width="950" alt="Advanced evidence summary animation" /></p>
 
 </details>
 

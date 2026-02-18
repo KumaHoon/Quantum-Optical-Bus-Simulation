@@ -14,6 +14,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtrans
 from matplotlib import ticker
 import matplotlib.patches as mpatches
 from matplotlib.animation import FuncAnimation, PillowWriter
@@ -122,9 +123,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-phase1", type=int, default=36, help="Frames in pump sweep phase.")
     parser.add_argument("--n-phase2", type=int, default=24, help="Frames in loss sweep phase.")
     parser.add_argument("--fps", type=float, default=8.0, help="Output frame rate.")
-    parser.add_argument("--dpi", type=int, default=95, help="Figure DPI.")
+    parser.add_argument("--dpi", type=int, default=92, help="Figure DPI.")
     parser.add_argument("--figure-width", type=float, default=11.4, help="Figure width in inches.")
-    parser.add_argument("--figure-height", type=float, default=4.7, help="Figure height in inches.")
+    parser.add_argument(
+        "--figure-height",
+        type=float,
+        default=5.4,
+        help="Figure height in inches.",
+    )
     parser.add_argument(
         "--gif-colors",
         type=int,
@@ -213,7 +219,7 @@ def _phase_label(frame_idx: int, n_phase1: int) -> str:
     return "Phase 1: Power Sweep" if frame_idx < n_phase1 else "Phase 2: Propagation Loss"
 
 
-def configure_axes() -> tuple[plt.Figure, plt.Axes, plt.Axes]:
+def configure_axes() -> tuple[plt.Figure, plt.Axes, plt.Axes, plt.Axes]:
     plt.rcParams.update(
         {
             "figure.facecolor": BG,
@@ -228,9 +234,18 @@ def configure_axes() -> tuple[plt.Figure, plt.Axes, plt.Axes]:
         }
     )
     fig = plt.figure()
-    ax_dashboard = fig.add_axes([0.025, 0.08, 0.36, 0.82])
-    ax_wigner = fig.add_axes([0.41, 0.08, 0.565, 0.82])
-    return fig, ax_dashboard, ax_wigner
+    gs = fig.add_gridspec(
+        nrows=2,
+        ncols=2,
+        height_ratios=[4.2, 1.2],
+        width_ratios=[1.0, 1.55],
+        hspace=0.18,
+        wspace=0.05,
+    )
+    ax_dashboard = fig.add_subplot(gs[0, 0])
+    ax_wigner = fig.add_subplot(gs[0, 1])
+    ax_calibration = fig.add_subplot(gs[1, :])
+    return fig, ax_dashboard, ax_wigner, ax_calibration
 
 
 def add_transition_callout(ax: plt.Axes, *, show: bool) -> None:
@@ -315,41 +330,53 @@ def draw_bar(
     )
 
 
-def draw_calibration_inset(
+def draw_calibration_panel(
     ax: plt.Axes,
     frame: DemoFrame,
     powers: np.ndarray,
     sq_db: np.ndarray,
 ) -> None:
-    inset = ax.inset_axes([0.57, 0.66, 0.40, 0.28])
-    inset.set_facecolor("#0f1722")
-    inset.set_title("Calibration curve", fontsize=9, color=WHITE, pad=4)
-    inset.set_xlim(0, 200)
-    inset.set_ylim(0.0, float(sq_db.max() + 0.8))
-    inset.plot(
+    ax.set_facecolor("#0f1722")
+    ax.set_title("Calibration curve (intrinsic squeezing)", fontsize=11, color=WHITE, pad=5)
+    ax.set_xlim(0, 200)
+    y_max = float(sq_db.max())
+    if y_max <= 0:
+        y_max = 1.0
+    ax.set_ylim(0.0, y_max * 1.04)
+    ax.plot(
         powers,
         sq_db,
         color=ACCENT,
-        lw=1.3,
+        lw=1.2,
         alpha=0.95,
     )
-    inset.scatter(
+    ax.scatter(
         [frame.pump_mw],
         [frame.intrinsic_sq_db],
         color=GREEN,
-        s=24,
+        s=28,
         zorder=4,
     )
-    inset.set_xlabel("Pump (mW)", fontsize=7, color=GRAY)
-    inset.set_ylabel("squeezing (dB)", fontsize=7, color=GRAY)
-    inset.xaxis.set_major_locator(ticker.MaxNLocator(3))
-    inset.yaxis.set_major_locator(ticker.MaxNLocator(3))
-    inset.tick_params(axis="both", colors=GRAY, labelsize=7)
-    inset.grid(alpha=0.18, color=LIGHT_BRD)
-    inset.set_xticks([0, 100, 200])
-    for spine in inset.spines.values():
+    ax.set_xlabel("Pump power (mW)", fontsize=9, color=GRAY, labelpad=3)
+    ax.set_ylabel("Squeezing (dB)", fontsize=9, color=GRAY, labelpad=0)
+    ax.xaxis.set_major_locator(ticker.MaxNLocator(4))
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(4))
+    ax.tick_params(axis="both", colors=GRAY, labelsize=8)
+    ax.grid(alpha=0.2, color=LIGHT_BRD)
+    ax.set_xticks([0, 100, 200])
+    for spine in ax.spines.values():
         spine.set_color(LIGHT_BRD)
         spine.set_alpha(0.8)
+    ax.text(
+        0.03,
+        0.95,
+        f"Current operating point: P={frame.pump_mw:.1f} mW",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=9,
+        color=GRAY,
+    )
 
 
 def draw_dashboard(
@@ -357,8 +384,7 @@ def draw_dashboard(
     frame: DemoFrame,
     frame_idx: int,
     n_phase1: int,
-    calibration_powers: np.ndarray,
-    calibration_sq_db: np.ndarray,
+    fig: plt.Figure,
 ) -> None:
     phase = _phase_label(frame_idx, n_phase1)
     phase_color = ACCENT if frame_idx < n_phase1 else ORANGE
@@ -446,34 +472,37 @@ def draw_dashboard(
         color=GRAY,
         fontweight="bold",
     )
+    label_shift = mtrans.ScaledTranslation(0, -7 / 72, fig.dpi_scale_trans)
     ax.text(
         5.0,
         3.55,
         f"{frame.intrinsic_sq_db:.2f} dB",
         ha="center",
-        fontsize=28,
+        transform=ax.transData + label_shift,
+        fontsize=24,
         fontweight="bold",
         color=ACCENT,
     )
     ax.text(
         5.0,
-        2.95,
+        2.85,
         "OBSERVED SQUEEZING (post-loss)",
         ha="center",
         fontsize=10,
         color=RED,
         fontweight="bold",
     )
+    observed_shift = mtrans.ScaledTranslation(0, -7 / 72, fig.dpi_scale_trans)
     ax.text(
         5.0,
-        2.5,
+        2.4,
         f"{frame.observed_sq_db:.2f} dB",
+        transform=ax.transData + observed_shift,
         ha="center",
-        fontsize=28,
+        fontsize=24,
         fontweight="bold",
         color=RED,
     )
-    draw_calibration_inset(ax, frame, calibration_powers, calibration_sq_db)
 
     add_transition_callout(ax, show=show_callout)
 
@@ -522,8 +551,8 @@ def draw_wigner_panel(ax: plt.Axes, frame: DemoFrame, xvec: np.ndarray, levels: 
     ax.set_xlim(-5.0, 5.0)
     ax.set_ylim(-5.0, 5.0)
     ax.set_aspect("equal")
-    ax.set_xlabel("x (position)", fontsize=12)
-    ax.set_ylabel("p (momentum)", fontsize=12)
+    ax.set_xlabel("x (position)", fontsize=12, color=WHITE, labelpad=8)
+    ax.set_ylabel("p (momentum)", fontsize=12, color=WHITE, labelpad=8)
     ax.xaxis.set_major_locator(ticker.MaxNLocator(5))
     ax.yaxis.set_major_locator(ticker.MaxNLocator(5))
     ax.set_title(
@@ -583,21 +612,27 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
     levels = np.linspace(
         -max(data.global_w_max, 1e-6),
         max(data.global_w_max, 1e-6),
-        36,
+        28,
     )
 
-    fig, ax_dash, ax_wig = configure_axes()
+    fig, ax_dash, ax_wig, ax_cal = configure_axes()
     fig.set_size_inches(config.figure_width, config.figure_height)
+    # Center the calibration curve panel under both top panels for consistent layout.
+    cal_pos = ax_cal.get_position()
+    cal_width = cal_pos.width * 0.72
+    cal_x0 = cal_pos.x0 + (cal_pos.width - cal_width) / 2.0
+    ax_cal.set_position((cal_x0, cal_pos.y0, cal_width, cal_pos.height))
+
     fig.suptitle(
         "Real-time Calibration Simulation",
         fontsize=18,
         fontweight="bold",
         color=DARK,
-        y=0.99,
+        y=0.98,
     )
     fig.text(
         0.9,
-        0.965,
+        0.963,
         "TDM Optical Bus - squeezed-light calibration",
         ha="right",
         fontsize=11,
@@ -608,15 +643,16 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
         frame = data.frames[frame_idx]
         ax_dash.cla()
         ax_wig.cla()
+        ax_cal.cla()
         draw_dashboard(
             ax_dash,
             frame,
             frame_idx,
             config.n_phase1,
-            data.calibration_powers,
-            data.calibration_sq_db,
+            fig,
         )
         draw_wigner_panel(ax_wig, frame, data.xvec, levels)
+        draw_calibration_panel(ax_cal, frame, data.calibration_powers, data.calibration_sq_db)
 
     print(f"Rendering {len(data.frames)} frames at {config.fps:.1f} fps ...")
     anim = FuncAnimation(fig, draw_frame, frames=len(data.frames), blit=False)
