@@ -44,6 +44,7 @@ from quantum_optical_bus.tdm_topology import simulate_topology
 from quantum_optical_bus.estimation import fit_eta_and_loss
 from quantum_optical_bus.control import simulate_phase_drift, apply_feedback_with_latency
 from quantum_optical_bus.units import db_to_eta
+from quantum_optical_bus.viz_style import apply_ieee_style
 
 # ──────────────────────────────────────────────────────────────────────
 # Page configuration
@@ -53,6 +54,8 @@ st.set_page_config(
     page_icon="🔬",
     layout="wide",
 )
+
+apply_ieee_style(base_font_size=10, tick_font_size=9)
 
 # ──────────────────────────────────────────────────────────────────────
 # Custom CSS for a polished, premium look
@@ -238,7 +241,7 @@ with col_formula:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Live P → r curve
-st.markdown("#### Power–Squeezing Calibration Curve  *(intrinsic, pre-loss)*")
+st.markdown("#### Power-Squeezing Calibration Curve  *(intrinsic, pre-loss)*")
 powers_curve = np.linspace(0, 500, 300)
 r_curve = calculate_squeezing(powers_curve)
 db_curve = -10 * np.log10(np.exp(-2 * r_curve))
@@ -254,8 +257,8 @@ ax_cal.axvline(
 )
 ax_cal.axhline(intrinsic_squeezing_db, color="#f97583", linestyle=":", linewidth=0.8, alpha=0.6)
 ax_cal.scatter([pump_power_mw], [intrinsic_squeezing_db], color="#f97583", zorder=5, s=60)
-ax_cal.set_xlabel("Pump Power  P  (mW)")
-ax_cal.set_ylabel("Intrinsic Squeezing (pre-loss)  (dB)")
+ax_cal.set_xlabel("Pump power P (mW)")
+ax_cal.set_ylabel("Intrinsic squeezing (pre-loss) (dB)")
 ax_cal.set_title(r"Calibration Curve:  $r = \eta\sqrt{P}$  (intrinsic, pre-loss)")
 ax_cal.legend(loc="lower right")
 ax_cal.grid(True, alpha=0.25)
@@ -279,14 +282,14 @@ GRID_POINTS = 120
 xvec = np.linspace(-GRID_LIMIT, GRID_LIMIT, GRID_POINTS)
 
 
-@st.cache_data(show_spinner="Running Strawberry Fields …")
+@st.cache_data(show_spinner="Running Strawberry Fields ...")
 def _run_quantum(r: float, theta: float, eta: float):
     """Thin cached wrapper around the shared ``run_single_mode``."""
     res = run_single_mode(r, theta, eta, xvec)
     return res.W, res.mean_photon, res.var_x, res.var_p, res.observed_sq_db, res.observed_antisq_db
 
 
-@st.cache_data(show_spinner="Running multi-mode simulation â€¦")
+@st.cache_data(show_spinner="Running multi-mode simulation ...")
 def _run_multimode_cached(
     n_bins: int,
     base_r: float,
@@ -309,12 +312,12 @@ def _run_multimode_cached(
     return loss_db, result
 
 
-@st.cache_data(show_spinner="Running topology simulation â€¦")
+@st.cache_data(show_spinner="Running topology simulation ...")
 def _run_topology_cached(config: dict):
     return simulate_topology(config)
 
 
-@st.cache_data(show_spinner="Running digital twin fit + control sweep â€¦")
+@st.cache_data(show_spinner="Running digital twin fit + control sweep ...")
 def _run_digital_twin_cached(
     n_points: int,
     eta_true: float,
@@ -496,9 +499,9 @@ with tab_noise:
         ax_nv.axvline(pump_power_mw, color="#d2a8ff", linestyle="--", linewidth=1, alpha=0.7)
         ax_nv.scatter([pump_power_mw], [var_x], color="#3fb950", zorder=5, s=50)
         ax_nv.scatter([pump_power_mw], [var_p], color="#f97583", zorder=5, s=50)
-        ax_nv.set_xlabel("Pump Power  P  (mW)")
-        ax_nv.set_ylabel("Quadrature Variance")
-        ax_nv.set_title("Noise Variance vs. Pump Power")
+        ax_nv.set_xlabel("Pump power P (mW)")
+        ax_nv.set_ylabel("Quadrature variance (unit, vacuum=0.5)")
+        ax_nv.set_title("Noise variance vs. pump power")
         ax_nv.set_yscale("log")
         ax_nv.legend(loc="upper left")
         ax_nv.grid(True, alpha=0.25)
@@ -767,30 +770,41 @@ with tab_twin:
             lw=2,
             label="Fitted model Var(x)",
         )
-        axs_fit[0].set_xlabel("Pump power (mW)")
-        axs_fit[0].set_ylabel("Variance")
+        axs_fit[0].set_xlabel("Pump power P (mW)")
+        axs_fit[0].set_ylabel("Var(x) (unit, vacuum=0.5)")
         axs_fit[0].set_title("Digital twin fit")
         axs_fit[0].grid(True, alpha=0.3)
         axs_fit[0].legend(loc="best")
 
-        axs_fit[1].plot(
+        (line_rms,) = axs_fit[1].plot(
             twin_result["latencies"],
             twin_result["rms_errors"],
             marker="o",
             color="#f97583",
-            label="RMS residual phase",
+            label="RMS residual phase error",
         )
-        axs_fit[1].plot(
+        axs_fit[1].set_xlabel("Latency steps (index)")
+        axs_fit[1].set_ylabel("RMS residual phase error (rad)", color="#f97583")
+        axs_fit[1].tick_params(axis="y", colors="#f97583")
+        axs_fit[1].grid(True, alpha=0.3)
+
+        axs_fit_ret = axs_fit[1].twinx()
+        (line_ret,) = axs_fit_ret.plot(
             twin_result["latencies"],
             twin_result["retention"],
             marker="o",
             color="#3fb950",
             label="Retention proxy",
         )
-        axs_fit[1].set_xlabel("Latency steps")
+        axs_fit_ret.set_ylabel("Retention proxy (unitless)", color="#3fb950")
+        axs_fit_ret.tick_params(axis="y", colors="#3fb950")
+
         axs_fit[1].set_title("Latency vs control quality")
-        axs_fit[1].grid(True, alpha=0.3)
-        axs_fit[1].legend(loc="best")
+        axs_fit[1].legend(
+            [line_rms, line_ret],
+            ["RMS residual phase error", "Retention proxy"],
+            loc="best",
+        )
         fig_fit.tight_layout()
         st.pyplot(fig_fit)
         plt.close(fig_fit)

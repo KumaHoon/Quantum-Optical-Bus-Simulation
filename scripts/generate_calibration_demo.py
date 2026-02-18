@@ -1,4 +1,4 @@
-"""Generate a stable, readable calibration demo GIF for README presentation."""
+"""Generate a professor-grade calibration live-demo GIF."""
 
 from __future__ import annotations
 
@@ -20,6 +20,15 @@ import matplotlib.patches as mpatches
 from matplotlib.animation import FuncAnimation, PillowWriter
 from PIL import Image
 
+from quantum_optical_bus.viz_style import (
+    AXIS_COLOR,
+    BG_COLOR,
+    PANEL_COLOR,
+    SERIES_BLUE,
+    SERIES_ORANGE,
+    apply_ieee_style,
+)
+
 
 SRC_ROOT = Path(__file__).resolve().parents[1]
 if str(SRC_ROOT / "src") not in sys.path:
@@ -30,7 +39,7 @@ if str(SRC_ROOT / "src") not in sys.path:
 class QuantumBackend:
     calculate_squeezing: Callable[[float], float]
     db_to_eta: Callable[[float], float]
-    observed_squeezing_from_cov: Callable[[Any], tuple[float, Any]]
+    observed_squeezing_from_cov: Callable[[Any], tuple[float, float]]
     sf_cov_to_vacuum05: Callable[[Any], Any]
     program_cls: Callable[[int], Any]
     engine_cls: Callable[[str], Any]
@@ -66,16 +75,12 @@ ASSETS_DIR = SRC_ROOT / "assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-BG = "#0d1117"
-PANEL = "#161b22"
-ACCENT = "#58a6ff"
-RED = "#f97583"
-GREEN = "#3fb950"
-ORANGE = "#d2a8ff"
-GRAY = "#8b949e"
-WHITE = "#c9d1d9"
-DARK = "#c9d1d9"
-LIGHT_BRD = "#30363d"
+INTRINSIC_COLOR = SERIES_BLUE
+OBSERVED_COLOR = SERIES_ORANGE
+TEXT_COLOR = "#c9d1d9"
+GRID_COLOR = "#30363d"
+CONTOUR_LEVELS = 24
+CAL_LABEL_SIZE = 24
 
 
 @dataclass(frozen=True)
@@ -124,11 +129,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-phase2", type=int, default=24, help="Frames in loss sweep phase.")
     parser.add_argument("--fps", type=float, default=8.0, help="Output frame rate.")
     parser.add_argument("--dpi", type=int, default=92, help="Figure DPI.")
-    parser.add_argument("--figure-width", type=float, default=11.4, help="Figure width in inches.")
+    parser.add_argument(
+        "--figure-width",
+        type=float,
+        default=10.7,
+        help="Figure width in inches.",
+    )
     parser.add_argument(
         "--figure-height",
         type=float,
-        default=5.4,
+        default=5.55,
         help="Figure height in inches.",
     )
     parser.add_argument(
@@ -205,7 +215,6 @@ def build_demo_data(n_phase1: int, n_phase2: int) -> DemoData:
         frames.append(frame)
         global_w_max = max(global_w_max, float(np.max(np.abs(frame.wigner))))
 
-    print("Done.")
     return DemoData(
         frames=tuple(frames),
         xvec=grid,
@@ -216,31 +225,18 @@ def build_demo_data(n_phase1: int, n_phase2: int) -> DemoData:
 
 
 def _phase_label(frame_idx: int, n_phase1: int) -> str:
-    return "Phase 1: Power Sweep" if frame_idx < n_phase1 else "Phase 2: Propagation Loss"
+    return "Phase 1: Power sweep (intrinsic r)" if frame_idx < n_phase1 else "Phase 2: Added loss"
 
 
 def configure_axes() -> tuple[plt.Figure, plt.Axes, plt.Axes, plt.Axes]:
-    plt.rcParams.update(
-        {
-            "figure.facecolor": BG,
-            "axes.facecolor": PANEL,
-            "axes.edgecolor": LIGHT_BRD,
-            "axes.labelcolor": WHITE,
-            "text.color": WHITE,
-            "xtick.color": GRAY,
-            "ytick.color": GRAY,
-            "font.family": "sans-serif",
-            "font.size": 12,
-        }
-    )
     fig = plt.figure()
     gs = fig.add_gridspec(
         nrows=2,
         ncols=2,
-        height_ratios=[4.2, 1.2],
+        height_ratios=[4.15, 1.25],
         width_ratios=[1.0, 1.55],
-        hspace=0.18,
-        wspace=0.05,
+        hspace=0.20,
+        wspace=0.06,
     )
     ax_dashboard = fig.add_subplot(gs[0, 0])
     ax_wigner = fig.add_subplot(gs[0, 1])
@@ -254,23 +250,23 @@ def add_transition_callout(ax: plt.Axes, *, show: bool) -> None:
     ax.add_patch(
         mpatches.FancyBboxPatch(
             (0.4, 2.4),
-            9.2,
-            0.7,
+            9.1,
+            0.68,
             boxstyle="round,pad=0.14",
-            facecolor="#0c2b46",
-            edgecolor=ACCENT,
-            linewidth=1.2,
+            facecolor=BG_COLOR,
+            edgecolor=INTRINSIC_COLOR,
+            linewidth=1.1,
             alpha=0.95,
         )
     )
     ax.text(
         5.0,
-        2.75,
-        "Intrinsic (pre-loss) stays; Observed (post-loss) decreases with loss.",
+        2.73,
+        "Intrinsic (pre-loss) stays; observed (post-loss) degrades with loss.",
         ha="center",
         va="center",
-        fontsize=10,
-        color=WHITE,
+        fontsize=9,
+        color=TEXT_COLOR,
     )
 
 
@@ -292,7 +288,7 @@ def draw_bar(
             h,
             boxstyle="round,pad=0.08",
             facecolor="#21262d",
-            edgecolor=LIGHT_BRD,
+            edgecolor=GRID_COLOR,
             linewidth=0.8,
         )
     )
@@ -305,7 +301,7 @@ def draw_bar(
                 boxstyle="round,pad=0.08",
                 facecolor=color,
                 edgecolor="none",
-                alpha=0.88,
+                alpha=0.85,
             )
         )
     ax.text(
@@ -314,8 +310,8 @@ def draw_bar(
         label_left,
         ha="right",
         va="center",
-        fontsize=12,
-        color=GRAY,
+        fontsize=9,
+        color=AXIS_COLOR,
         fontweight="bold",
     )
     ax.text(
@@ -324,8 +320,8 @@ def draw_bar(
         label_right,
         ha="left",
         va="center",
-        fontsize=12,
-        color=WHITE,
+        fontsize=10,
+        color=TEXT_COLOR,
         fontweight="bold",
     )
 
@@ -336,37 +332,32 @@ def draw_calibration_panel(
     powers: np.ndarray,
     sq_db: np.ndarray,
 ) -> None:
-    ax.set_facecolor("#0f1722")
-    ax.set_title("Calibration curve (intrinsic squeezing)", fontsize=11, color=WHITE, pad=5)
-    ax.set_xlim(0, 200)
+    ax.set_title("Calibration curve (intrinsic)", fontsize=10, color=TEXT_COLOR, pad=7)
+    ax.set_facecolor(PANEL_COLOR)
+    ax.set_xlim(0.0, 200.0)
+    ax.set_xticks([0, 50, 100, 150, 200])
     y_max = float(sq_db.max())
-    if y_max <= 0:
+    if y_max <= 0.0:
         y_max = 1.0
-    ax.set_ylim(0.0, y_max * 1.04)
-    ax.plot(
-        powers,
-        sq_db,
-        color=ACCENT,
-        lw=1.2,
-        alpha=0.95,
-    )
+    ax.set_ylim(0.0, y_max * 1.08)
+    ax.set_yticks(np.linspace(0.0, y_max, num=5))
+
+    ax.plot(powers, sq_db, color=INTRINSIC_COLOR, lw=1.35, alpha=0.95)
     ax.scatter(
         [frame.pump_mw],
         [frame.intrinsic_sq_db],
-        color=GREEN,
-        s=28,
-        zorder=4,
+        color=OBSERVED_COLOR,
+        s=36,
+        zorder=5,
     )
-    ax.set_xlabel("Pump power (mW)", fontsize=9, color=GRAY, labelpad=3)
-    ax.set_ylabel("Squeezing (dB)", fontsize=9, color=GRAY, labelpad=0)
+    ax.axvline(frame.pump_mw, color=OBSERVED_COLOR, ls="--", lw=1.0, alpha=0.9)
+    ax.set_xlabel("Pump power P (mW)", fontsize=8.5, color=AXIS_COLOR, labelpad=6)
+    ax.set_ylabel("Squeezing (dB)", fontsize=8.5, color=AXIS_COLOR, labelpad=6)
+    ax.tick_params(axis="both", pad=3, colors=AXIS_COLOR, labelsize=8)
     ax.xaxis.set_major_locator(ticker.MaxNLocator(4))
-    ax.yaxis.set_major_locator(ticker.MaxNLocator(4))
-    ax.tick_params(axis="both", colors=GRAY, labelsize=8)
-    ax.grid(alpha=0.2, color=LIGHT_BRD)
-    ax.set_xticks([0, 100, 200])
-    for spine in ax.spines.values():
-        spine.set_color(LIGHT_BRD)
-        spine.set_alpha(0.8)
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(5))
+    ax.grid(alpha=0.23, color=GRID_COLOR)
+    ax.set_axisbelow(True)
     ax.text(
         0.03,
         0.95,
@@ -374,8 +365,19 @@ def draw_calibration_panel(
         transform=ax.transAxes,
         ha="left",
         va="top",
-        fontsize=9,
-        color=GRAY,
+        fontsize=8,
+        color=AXIS_COLOR,
+    )
+
+    ax.text(
+        0.97,
+        0.08,
+        "Observed = loss-attenuated variance",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=7,
+        color=GRID_COLOR,
     )
 
 
@@ -387,7 +389,7 @@ def draw_dashboard(
     fig: plt.Figure,
 ) -> None:
     phase = _phase_label(frame_idx, n_phase1)
-    phase_color = ACCENT if frame_idx < n_phase1 else ORANGE
+    phase_color = INTRINSIC_COLOR if frame_idx < n_phase1 else OBSERVED_COLOR
     show_callout = frame_idx in {n_phase1, n_phase1 + 1, n_phase1 + 2}
 
     ax.set_xlim(0, 10)
@@ -397,21 +399,21 @@ def draw_dashboard(
     ax.add_patch(
         mpatches.FancyBboxPatch(
             (0.3, 8.6),
-            9.2,
+            9.3,
             1.0,
             boxstyle="round,pad=0.18",
             facecolor=phase_color,
             edgecolor="none",
-            alpha=0.12,
+            alpha=0.14,
         )
     )
     ax.text(
-        4.9,
+        4.95,
         9.1,
         phase,
         ha="center",
         va="center",
-        fontsize=15,
+        fontsize=11,
         fontweight="bold",
         color=phase_color,
     )
@@ -423,110 +425,125 @@ def draw_dashboard(
         5.4,
         0.58,
         frame.pump_mw / 200.0,
-        ACCENT,
-        "Pump Power",
+        INTRINSIC_COLOR,
+        "Pump power",
         f"{frame.pump_mw:.0f} mW",
     )
     draw_bar(
-        ax, 3.0, 6.5, 5.4, 0.58, frame.loss_db / 2.0, ORANGE, "Loss", f"{frame.loss_db:.2f} dB"
+        ax,
+        3.0,
+        6.45,
+        5.4,
+        0.58,
+        frame.loss_db / 2.0,
+        OBSERVED_COLOR,
+        "Loss",
+        f"{frame.loss_db:.2f} dB",
     )
 
     ax.text(
         4.9,
-        5.83,
+        5.95,
         "CALIBRATION METRICS",
         ha="center",
-        fontsize=12,
-        color=GRAY,
+        fontsize=10,
+        color=AXIS_COLOR,
         fontweight="bold",
     )
 
-    ax.text(0.8, 5.0, "Squeezing parameter r:", fontsize=12, color=GRAY)
+    ax.text(0.9, 5.15, "Squeezing parameter r", fontsize=9, color=AXIS_COLOR)
     ax.text(
-        9.1,
-        5.0,
+        9.0,
+        5.15,
         f"{frame.r:.4f}",
-        fontsize=15,
+        fontsize=12,
         fontweight="bold",
-        color=GREEN,
+        color=TEXT_COLOR,
         ha="right",
     )
 
+    label_gap = mtrans.ScaledTranslation(0, -6 / 72, fig.dpi_scale_trans)
+    value_gap = mtrans.ScaledTranslation(0, -11 / 72, fig.dpi_scale_trans)
+
     ax.add_patch(
         mpatches.FancyBboxPatch(
-            (0.45, 2.2),
+            (0.45, 2.5),
             9.1,
-            1.7,
-            boxstyle="round,pad=0.16",
+            2.0,
+            boxstyle="round,pad=0.14",
             facecolor="#251f23",
-            edgecolor=RED,
-            linewidth=1.5,
+            edgecolor=INTRINSIC_COLOR,
+            linewidth=1.2,
         )
     )
     ax.text(
         5.0,
-        4.1,
+        4.15,
         "INTRINSIC SQUEEZING (pre-loss)",
         ha="center",
-        fontsize=10,
-        color=GRAY,
+        fontsize=9,
+        color=AXIS_COLOR,
         fontweight="bold",
     )
-    label_shift = mtrans.ScaledTranslation(0, -7 / 72, fig.dpi_scale_trans)
     ax.text(
         5.0,
-        3.55,
+        3.78,
         f"{frame.intrinsic_sq_db:.2f} dB",
         ha="center",
-        transform=ax.transData + label_shift,
-        fontsize=24,
+        transform=ax.transData + label_gap,
+        fontsize=CAL_LABEL_SIZE,
         fontweight="bold",
-        color=ACCENT,
+        color=INTRINSIC_COLOR,
     )
     ax.text(
         5.0,
-        2.85,
+        3.25,
         "OBSERVED SQUEEZING (post-loss)",
         ha="center",
-        fontsize=10,
-        color=RED,
+        transform=ax.transData + value_gap,
+        fontsize=9,
+        color=AXIS_COLOR,
         fontweight="bold",
     )
-    observed_shift = mtrans.ScaledTranslation(0, -7 / 72, fig.dpi_scale_trans)
     ax.text(
         5.0,
-        2.4,
+        2.88,
         f"{frame.observed_sq_db:.2f} dB",
-        transform=ax.transData + observed_shift,
+        transform=ax.transData + label_gap,
         ha="center",
-        fontsize=24,
+        fontsize=CAL_LABEL_SIZE,
         fontweight="bold",
-        color=RED,
+        color=OBSERVED_COLOR,
     )
-
-    add_transition_callout(ax, show=show_callout)
-
     ax.text(
+        0.9,
         0.8,
-        0.8,
-        "Transmissivity",
-        fontsize=11,
-        color=GRAY,
+        "Channel transmissivity",
+        fontsize=9,
+        color=AXIS_COLOR,
     )
+
     eta = frame.transmittance
-    eta_color = GREEN if eta > 0.9 else ORANGE if eta > 0.5 else RED
+    eta_color = INTRINSIC_COLOR if eta > 0.9 else OBSERVED_COLOR if eta > 0.5 else "#8b4b53"
     ax.text(
         5.0,
         0.8,
         f"{eta:.4f}",
-        fontsize=14,
+        fontsize=12,
         fontweight="bold",
         color=eta_color,
         ha="right",
     )
 
+    add_transition_callout(ax, show=show_callout)
 
-def draw_wigner_panel(ax: plt.Axes, frame: DemoFrame, xvec: np.ndarray, levels: np.ndarray) -> None:
+
+def draw_wigner_panel(
+    ax: plt.Axes,
+    frame: DemoFrame,
+    xvec: np.ndarray,
+    levels: np.ndarray,
+) -> None:
     ax.contourf(
         xvec,
         xvec,
@@ -544,31 +561,32 @@ def draw_wigner_panel(ax: plt.Axes, frame: DemoFrame, xvec: np.ndarray, levels: 
         np.cos(theta),
         np.sin(theta),
         linestyle="--",
-        color=GRAY,
-        linewidth=1.1,
+        color=AXIS_COLOR,
+        linewidth=1.0,
         alpha=0.8,
     )
     ax.set_xlim(-5.0, 5.0)
     ax.set_ylim(-5.0, 5.0)
     ax.set_aspect("equal")
-    ax.set_xlabel("x (position)", fontsize=12, color=WHITE, labelpad=8)
-    ax.set_ylabel("p (momentum)", fontsize=12, color=WHITE, labelpad=8)
+    ax.set_xlabel("x (position quadrature)", fontsize=9, color=TEXT_COLOR, labelpad=9)
+    ax.set_ylabel("p (momentum quadrature)", fontsize=9, color=TEXT_COLOR, labelpad=9)
     ax.xaxis.set_major_locator(ticker.MaxNLocator(5))
     ax.yaxis.set_major_locator(ticker.MaxNLocator(5))
     ax.set_title(
-        f"Wigner: r = {frame.r:.3f}",
-        fontsize=13,
+        f"Wigner function: r = {frame.r:.3f}",
+        fontsize=10,
         fontweight="bold",
-        color=DARK,
+        color=TEXT_COLOR,
         pad=8,
     )
+    ax.tick_params(labelsize=8, pad=3, colors=AXIS_COLOR)
     for spine in ax.spines.values():
-        spine.set_color(LIGHT_BRD)
+        spine.set_color(GRID_COLOR)
         spine.set_alpha(0.9)
-    ax.grid(alpha=0.12, color=GRAY)
+    ax.grid(alpha=0.12, color=GRID_COLOR)
 
 
-def optimize_gif(tmp_path: Path, output: Path, *, colors: int) -> None:
+def optimize_gif(tmp_path: Path, output: Path, *, colors: int, fps: float) -> None:
     with Image.open(tmp_path) as im:
         frames = []
         for frame in range(im.n_frames):
@@ -581,13 +599,13 @@ def optimize_gif(tmp_path: Path, output: Path, *, colors: int) -> None:
             save_all=True,
             append_images=frames[1:],
             loop=im.info.get("loop", 0),
-            duration=im.info.get("duration", 125),
+            duration=int(1000 / fps),
             optimize=True,
             disposal=2,
-            comment=im.info.get("comment", b""),
+            include_color_table=True,
         )
     tmp_path.unlink(missing_ok=True)
-    print(f"[OK] Saved optimized GIF to {output}")
+    print(f"[OK] Saved optimized GIF to {output} ({output.stat().st_size} bytes)")
 
 
 def save_mp4_if_available(gif_path: Path) -> None:
@@ -596,47 +614,45 @@ def save_mp4_if_available(gif_path: Path) -> None:
         print("[INFO] ffmpeg not found; skipping MP4 generation.")
         return
 
-    mp4_path = gif_path.with_suffix(".mp4")
     try:
         import imageio.v2 as imageio
 
         with imageio.get_reader(gif_path) as reader:
             frames = [f for f in reader]
-            imageio.mimsave(mp4_path, frames, fps=8)
-        print(f"[OK] Also saved {mp4_path}")
-    except Exception as exc:  # pragma: no cover - environment dependent
+        if not frames:
+            print("[WARN] GIF has no frames; skipped MP4.")
+            return
+        imageio.mimsave(gif_path.with_suffix(".mp4"), frames, fps=8)
+        print(f"[OK] Also saved {gif_path.with_suffix('.mp4')}")
+    except Exception as exc:
         print(f"[WARN] MP4 generation failed: {exc}")
 
 
 def run_animation(data: DemoData, config: RenderConfig) -> None:
+    apply_ieee_style(base_font_size=10, tick_font_size=9, dpi=config.dpi)
     levels = np.linspace(
         -max(data.global_w_max, 1e-6),
         max(data.global_w_max, 1e-6),
-        28,
+        CONTOUR_LEVELS,
     )
-
     fig, ax_dash, ax_wig, ax_cal = configure_axes()
     fig.set_size_inches(config.figure_width, config.figure_height)
-    # Center the calibration curve panel under both top panels for consistent layout.
+    fig.patch.set_facecolor(BG_COLOR)
+
+    # Center the bottom calibration axis under both top panels.
     cal_pos = ax_cal.get_position()
     cal_width = cal_pos.width * 0.72
-    cal_x0 = cal_pos.x0 + (cal_pos.width - cal_width) / 2.0
+    cal_x0 = 0.5 - cal_width / 2.0
     ax_cal.set_position((cal_x0, cal_pos.y0, cal_width, cal_pos.height))
+
+    fig.subplots_adjust(top=0.95, bottom=0.07, left=0.05, right=0.985, hspace=0.20, wspace=0.06)
 
     fig.suptitle(
         "Real-time Calibration Simulation",
-        fontsize=18,
+        fontsize=14,
         fontweight="bold",
-        color=DARK,
-        y=0.98,
-    )
-    fig.text(
-        0.9,
-        0.963,
-        "TDM Optical Bus - squeezed-light calibration",
-        ha="right",
-        fontsize=11,
-        color=GRAY,
+        color=TEXT_COLOR,
+        y=0.985,
     )
 
     def draw_frame(frame_idx: int) -> None:
@@ -644,13 +660,7 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
         ax_dash.cla()
         ax_wig.cla()
         ax_cal.cla()
-        draw_dashboard(
-            ax_dash,
-            frame,
-            frame_idx,
-            config.n_phase1,
-            fig,
-        )
+        draw_dashboard(ax_dash, frame, frame_idx, config.n_phase1, fig)
         draw_wigner_panel(ax_wig, frame, data.xvec, levels)
         draw_calibration_panel(ax_cal, frame, data.calibration_powers, data.calibration_sq_db)
 
@@ -659,7 +669,7 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
     tmp_path = config.output.with_suffix(".tmp.gif")
     anim.save(tmp_path, writer=PillowWriter(fps=config.fps), dpi=config.dpi)
     plt.close(fig)
-    optimize_gif(tmp_path, config.output, colors=config.gif_colors)
+    optimize_gif(tmp_path, config.output, colors=config.gif_colors, fps=config.fps)
 
     if config.save_mp4:
         save_mp4_if_available(config.output)

@@ -8,7 +8,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -153,24 +152,35 @@ def make_equal_canvas(images: list[Image.Image], bg=(10, 18, 30, 255)) -> list[I
     return framed
 
 
-def build_frames(images: list[Image.Image], config: RenderConfig) -> Iterable[Image.Image]:
+def build_frames(
+    images: list[Image.Image], config: RenderConfig
+) -> tuple[list[Image.Image], list[int]]:
     hold_frames = max(1, int(round(config.hold_seconds * config.fps)))
     fade_frames = max(1, int(round(config.crossfade_seconds * config.fps)))
+    frame_duration_ms = max(1, int(1000 / config.fps))
+
+    frames: list[Image.Image] = []
+    durations: list[int] = []
 
     for i, image in enumerate(images):
         for _ in range(hold_frames):
-            yield image
+            frames.append(image)
+            durations.append(frame_duration_ms)
 
         if i + 1 >= len(images):
             continue
         nxt = images[i + 1]
         for step in range(1, fade_frames + 1):
             alpha = step / (fade_frames + 1)
-            yield Image.blend(image, nxt, alpha)
+            frames.append(Image.blend(image, nxt, alpha))
+            durations.append(frame_duration_ms)
+
+    return frames, durations
 
 
 def optimize_and_save(
     frames: list[Image.Image],
+    durations: list[int],
     config: RenderConfig,
 ) -> None:
     if not frames:
@@ -187,12 +197,11 @@ def optimize_and_save(
         for frame in frames
     ]
 
-    duration_ms = int(1000 / config.fps)
     quantized[0].save(
         config.output,
         save_all=True,
         append_images=quantized[1:],
-        duration=duration_ms,
+        duration=durations,
         loop=0,
         optimize=True,
         disposal=2,
@@ -251,8 +260,8 @@ def main() -> None:
         output=args.output,
         save_mp4=args.save_mp4,
     )
-    frames = list(build_frames(framed, config))
-    optimize_and_save(frames, config)
+    frames, durations = build_frames(framed, config)
+    optimize_and_save(frames, durations, config)
 
 
 if __name__ == "__main__":

@@ -1,422 +1,393 @@
-"""
-Dashboard Gallery Generator — produces presentation-ready images
-that mirror the Calibration Dashboard's three key scenarios.
+"""Generate 2-column dashboard scenario PNG assets with consistent styling."""
 
-Usage:
-    python scripts/generate_dashboard_gallery.py
-
-Outputs to assets/:
-    dashboard_vacuum.png       — Baseline (P = 0 mW)
-    dashboard_calibration.png  — Calibration Curve + Squeezed State
-    dashboard_decoherence.png  — Loss Channel / Decoherence demo
-"""
-
-# ruff: noqa: E402
+from __future__ import annotations
 
 import pathlib
 import sys
+from math import factorial
 
-# Ensure package is importable
-_SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-import quantum_optical_bus.compat  # noqa: F401
-
-import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import numpy as np
 
-from quantum_optical_bus.hardware import run_hardware_simulation, WaveguideConfig
-from quantum_optical_bus.interface import calculate_squeezing
-from quantum_optical_bus.quantum import run_single_mode
-from quantum_optical_bus.units import db_to_eta
+# Ensure package importability from scripts path.
+SRC_DIR = pathlib.Path(__file__).resolve().parents[1] / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
-ASSETS_DIR = pathlib.Path(__file__).resolve().parents[1] / "assets"
+import quantum_optical_bus.compat  # noqa: F401, E402
+
+from quantum_optical_bus.hardware import WaveguideConfig, run_hardware_simulation  # noqa: E402
+from quantum_optical_bus.interface import calculate_squeezing  # noqa: E402
+from quantum_optical_bus.quantum import run_single_mode  # noqa: E402
+from quantum_optical_bus.units import db_to_eta  # noqa: E402
+from quantum_optical_bus.viz_style import (  # noqa: E402
+    AXIS_COLOR,
+    BG_COLOR,
+    FIGURE_WIDTH_2COL_IN,
+    SERIES_BLUE,
+    SERIES_ORANGE,
+    SERIES_PURPLE,
+    SERIES_TEAL,
+    apply_ieee_style,
+    apply_layout,
+    style_axis,
+)
+
+ASSETS_DIR = SRC_DIR.parent / "assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Physics constants
 GRID_LIMIT = 4.0
 GRID_POINTS = 120
-xvec = np.linspace(-GRID_LIMIT, GRID_LIMIT, GRID_POINTS)
-
-# Dark aesthetic colours
-BG = "#0d1117"
-PANEL_BG = "#161b22"
-ACCENT = "#58a6ff"
-RED = "#f97583"
-GREEN = "#3fb950"
-GRAY = "#8b949e"
-WHITE = "#c9d1d9"
+X_VECTOR = np.linspace(-GRID_LIMIT, GRID_LIMIT, GRID_POINTS)
+CONTOUR_LEVELS = 28
+FIG_SIZE = (FIGURE_WIDTH_2COL_IN, 4.45)
 
 
-def _dark_style():
-    """Apply a dark theme matching the Streamlit dashboard aesthetic."""
-    plt.rcParams.update(
-        {
-            "figure.facecolor": BG,
-            "axes.facecolor": PANEL_BG,
-            "axes.edgecolor": GRAY,
-            "axes.labelcolor": WHITE,
-            "text.color": WHITE,
-            "xtick.color": GRAY,
-            "ytick.color": GRAY,
-            "grid.color": "#30363d",
-            "grid.alpha": 0.4,
-            "font.family": "sans-serif",
-            "font.size": 10,
-        }
-    )
+def _run_quantum(r: float, theta: float, eta_loss: float) -> tuple[np.ndarray, float, float, float]:
+    res = run_single_mode(r, theta, eta_loss, X_VECTOR)
+    intrinsic_sq_db = -10.0 * np.log10(np.exp(-2.0 * r)) if r > 0 else 0.0
+    return res.W, res.var_x, res.var_p, intrinsic_sq_db
 
 
-def _run_quantum(r, theta, eta_loss):
-    """Thin wrapper around shared ``run_single_mode``."""
-    res = run_single_mode(r, theta, eta_loss, xvec)
-    return res.W, res.mean_photon, res.var_x, res.var_p, res.observed_sq_db
-
-
-# ──────────────────────────────────────────────────────────────────
-# Scenario 1 — VACUUM BASELINE (P = 0)
-# ──────────────────────────────────────────────────────────────────
-def scenario_vacuum():
-    _dark_style()
-    fig = plt.figure(figsize=(16, 8))
-    gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.35, wspace=0.30)
-
-    pump = 0.0
-    r = calculate_squeezing(pump)
-    sq_db = 0.0
-    W, _, var_x, var_p, _ = _run_quantum(r, 0.0, 1.0)
-
-    # ---- Hardware mode ----
-    cfg = WaveguideConfig()
+def _draw_hardware(ax: plt.Axes, cfg: WaveguideConfig | None = None) -> None:
+    if cfg is None:
+        cfg = WaveguideConfig()
     n_eff, mode_area, ez_data, extent = run_hardware_simulation(cfg)
-    ax0 = fig.add_subplot(gs[:, 0])
-    ax0.imshow(ez_data, extent=extent, cmap="RdBu", origin="lower", aspect="auto")
-    ax0.set_title("Phase 1 · Waveguide Mode", color=ACCENT, fontsize=12, fontweight="bold")
-    ax0.set_xlabel("x (μm)")
-    ax0.set_ylabel("y (μm)")
-    ax0.text(
-        0.05,
-        0.93,
-        f"$n_{{eff}}$ = {n_eff:.2f}\nArea = {mode_area:.2f} μm²",
-        transform=ax0.transAxes,
-        fontsize=9,
-        bbox=dict(facecolor="black", alpha=0.7, edgecolor="none"),
+    ax.imshow(ez_data, extent=extent, cmap="RdBu", origin="lower", aspect="auto")
+    ax.set_title("Waveguide mode", fontsize=11)
+    ax.set_xlabel("x (um)")
+    ax.set_ylabel("y (um)")
+    ax.text(
+        0.04,
+        0.96,
+        f"n_eff = {n_eff:.2f}\nArea = {mode_area:.2f} um^2",
+        transform=ax.transAxes,
+        fontsize=8,
+        color=AXIS_COLOR,
+        va="top",
+        ha="left",
     )
+    style_axis(ax)
 
-    # ---- Calibration (Top-Right) ----
-    ax1 = fig.add_subplot(gs[0, 1:])
-    powers_c = np.linspace(0, 500, 300)
-    db_c = -10 * np.log10(np.exp(-2 * calculate_squeezing(powers_c)))
-    ax1.plot(powers_c, db_c, color=ACCENT, lw=2)
-    ax1.axvline(pump, color=RED, ls="--", lw=1.2)
-    ax1.scatter([pump], [sq_db], color=RED, zorder=5, s=70)
-    ax1.set_xlabel("Pump Power  P  (mW)")
-    ax1.set_ylabel("Intrinsic Squeezing (pre-loss)  (dB)")
-    ax1.set_title(
-        "Phase 2 · Calibration Curve  —  $r = \\eta\\sqrt{P}$",
-        color=ACCENT,
-        fontsize=12,
-        fontweight="bold",
+
+def _draw_calibration_curve(ax: plt.Axes, pump: float, *, title: str) -> tuple[float, float]:
+    sq_powers = np.linspace(0.0, 500.0, 300)
+    sq_db = -10.0 * np.log10(np.exp(-2.0 * calculate_squeezing(sq_powers)))
+    r = calculate_squeezing(pump)
+    observed = -10.0 * np.log10(np.exp(-2.0 * r)) if r > 0 else 0.0
+    ax.plot(sq_powers, sq_db, color=SERIES_BLUE, lw=1.7)
+    ax.axvline(pump, color=SERIES_ORANGE, ls="--", lw=1.1)
+    ax.axhline(observed, color=SERIES_ORANGE, ls=":", lw=0.9, alpha=0.75)
+    ax.scatter([pump], [observed], color=SERIES_ORANGE, s=45, zorder=5)
+    style_axis(
+        ax,
+        title=title,
+        xlabel="Pump power P (mW)",
+        ylabel="Intrinsic squeezing (dB)",
     )
-    ax1.grid(True)
-    ax1.text(
-        260,
-        0.3,
-        f"P = {pump:.0f} mW  →  r = {r:.3f}  →  Intrinsic: {sq_db:.1f} dB",
-        fontsize=11,
-        color=RED,
-        bbox=dict(facecolor=PANEL_BG, edgecolor=RED, boxstyle="round,pad=0.4"),
+    ax.set_xlim(0.0, 500.0)
+    ax.set_ylim(bottom=0.0)
+    return observed, r
+
+
+def scenario_vacuum() -> None:
+    apply_ieee_style()
+    fig = plt.figure(figsize=FIG_SIZE)
+    gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.30, wspace=0.30)
+
+    W, var_x, var_p, _ = _run_quantum(0.0, 0.0, 1.0)
+
+    ax_hw = fig.add_subplot(gs[:, 0])
+    ax_cal = fig.add_subplot(gs[0, 1:])
+    ax_wig = fig.add_subplot(gs[1, 1])
+    ax_var = fig.add_subplot(gs[1, 2])
+
+    _draw_hardware(ax_hw, WaveguideConfig())
+    _draw_calibration_curve(ax_cal, 0.0, title="Intrinsic calibration curve")
+
+    cf = ax_wig.contourf(
+        X_VECTOR,
+        X_VECTOR,
+        W,
+        levels=CONTOUR_LEVELS,
+        cmap="RdBu_r",
+        vmin=-abs(W).max(),
+        vmax=abs(W).max(),
     )
+    fig.colorbar(cf, ax=ax_wig, fraction=0.046, pad=0.04)
+    style_axis(
+        ax_wig,
+        title="Wigner function: vacuum",
+        xlabel="x",
+        ylabel="p",
+    )
+    ax_wig.set_aspect("equal")
 
-    # ---- Wigner (Bottom-Right) ----
-    ax2 = fig.add_subplot(gs[1, 1])
-    ax2.contourf(xvec, xvec, W, levels=60, cmap="RdBu_r")
-    ax2.set_title("Wigner Function (Vacuum)", fontsize=11, fontweight="bold")
-    ax2.set_xlabel("x")
-    ax2.set_ylabel("p")
-    ax2.set_aspect("equal")
-
-    # ---- Noise Variance (Bottom-Right 2) ----
-    ax3 = fig.add_subplot(gs[1, 2])
-    cats = ["Var(x)", "Var(p)", "Shot Noise"]
-    vals = [var_x, var_p, 0.5]
-    colours = [GREEN, RED, GRAY]
-    bars = ax3.bar(cats, vals, color=colours, edgecolor="#30363d", width=0.5)
-    ax3.set_title("Quadrature Variance", fontsize=11, fontweight="bold")
-    ax3.set_ylabel("Variance")
-    ax3.grid(axis="y")
-    for b, v in zip(bars, vals):
-        ax3.text(
-            b.get_x() + b.get_width() / 2,
-            v + 0.02,
-            f"{v:.3f}",
+    bars = ax_var.bar(
+        ["Var(x)", "Var(p)", "Shot-noise"],
+        [var_x, var_p, 0.5],
+        color=[SERIES_BLUE, SERIES_ORANGE, AXIS_COLOR],
+        edgecolor=BG_COLOR,
+    )
+    for bar, value in zip(bars, [var_x, var_p, 0.5]):
+        ax_var.text(
+            bar.get_x() + bar.get_width() / 2,
+            value + 0.02,
+            f"{value:.3f}",
             ha="center",
-            fontsize=9,
-            color=WHITE,
+            va="bottom",
+            fontsize=8,
         )
-
-    fig.suptitle(
-        "Scenario 1 — Baseline: Vacuum State  (P = 0 mW)",
-        fontsize=15,
-        fontweight="bold",
-        color=WHITE,
-        y=0.98,
+    style_axis(
+        ax_var, title="Quadrature variance", ylabel="Variance (SNU; vacuum=0.5)", xlabel="Metric"
     )
+
+    fig.suptitle("Scenario 1 - Vacuum baseline (P = 0 mW)", fontsize=12, y=0.985)
     fig.text(
         0.5,
         0.01,
-        "Insight: With zero pump power the bus transmits pure vacuum noise. "
-        "The Wigner function is perfectly circular (isotropic).",
+        "Intrinsic squeezing is near 0 dB because pump power is zero.",
         ha="center",
-        fontsize=10,
-        color=GRAY,
+        fontsize=9,
+        color=AXIS_COLOR,
     )
-
-    path = ASSETS_DIR / "dashboard_vacuum.png"
-    fig.savefig(path, dpi=150, bbox_inches="tight")
+    apply_layout(fig)
+    out = ASSETS_DIR / "dashboard_vacuum.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight")
     plt.close(fig)
-    print(f"[OK] {path}")
+    print(f"[OK] {out}")
 
 
-# ──────────────────────────────────────────────────────────────────
-# Scenario 2 — CALIBRATION CURVE (P = 200 mW, squeezed state)
-# ──────────────────────────────────────────────────────────────────
-def scenario_calibration():
-    _dark_style()
-    fig = plt.figure(figsize=(16, 8))
-    gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.35, wspace=0.30)
+def scenario_calibration() -> None:
+    apply_ieee_style()
+    fig = plt.figure(figsize=FIG_SIZE)
+    gs = gridspec.GridSpec(2, 3, figure=fig, hspace=0.30, wspace=0.30)
 
     pump = 200.0
     r = calculate_squeezing(pump)
-    sq_db = -10 * np.log10(np.exp(-2 * r))
-    W, mean_n, var_x, var_p, _ = _run_quantum(r, 0.0, 1.0)
+    intrinsic_sq = -10.0 * np.log10(np.exp(-2.0 * r))
+    W, _, _, _ = _run_quantum(pump, 0.0, 1.0)
 
-    # ---- Hardware mode ----
-    cfg = WaveguideConfig()
-    n_eff, mode_area, ez_data, extent = run_hardware_simulation(cfg)
-    ax0 = fig.add_subplot(gs[:, 0])
-    ax0.imshow(ez_data, extent=extent, cmap="RdBu", origin="lower", aspect="auto")
-    ax0.set_title("Phase 1 · Waveguide Mode", color=ACCENT, fontsize=12, fontweight="bold")
-    ax0.set_xlabel("x (μm)")
-    ax0.set_ylabel("y (μm)")
-    ax0.text(
-        0.05,
-        0.93,
-        f"$n_{{eff}}$ = {n_eff:.2f}\nArea = {mode_area:.2f} μm²",
-        transform=ax0.transAxes,
-        fontsize=9,
-        bbox=dict(facecolor="black", alpha=0.7, edgecolor="none"),
+    ax_hw = fig.add_subplot(gs[:, 0])
+    ax_cal = fig.add_subplot(gs[0, 1:])
+    ax_wig = fig.add_subplot(gs[1, 1])
+    ax_pn = fig.add_subplot(gs[1, 2])
+
+    _draw_hardware(ax_hw, WaveguideConfig())
+    _draw_calibration_curve(ax_cal, pump, title="Calibration curve and operating point")
+
+    cf = ax_wig.contourf(
+        X_VECTOR,
+        X_VECTOR,
+        W,
+        levels=CONTOUR_LEVELS,
+        cmap="RdBu_r",
+        vmin=-abs(W).max(),
+        vmax=abs(W).max(),
     )
-
-    # ---- Calibration Curve (Top-Right) ----
-    ax1 = fig.add_subplot(gs[0, 1:])
-    powers_c = np.linspace(0, 500, 300)
-    db_c = -10 * np.log10(np.exp(-2 * calculate_squeezing(powers_c)))
-    ax1.plot(powers_c, db_c, color=ACCENT, lw=2, label="$-10\\log_{10}(e^{-2r})$")
-    ax1.axvline(pump, color=RED, ls="--", lw=1.2)
-    ax1.axhline(sq_db, color=RED, ls=":", lw=0.8, alpha=0.6)
-    ax1.scatter([pump], [sq_db], color=RED, zorder=5, s=70)
-    ax1.set_xlabel("Pump Power  P  (mW)")
-    ax1.set_ylabel("Intrinsic Squeezing (pre-loss)  (dB)")
-    ax1.set_title(
-        "Phase 2 · Calibration Curve  —  $r = \\eta\\sqrt{P}$",
-        color=ACCENT,
-        fontsize=12,
-        fontweight="bold",
+    fig.colorbar(cf, ax=ax_wig, fraction=0.046, pad=0.04)
+    style_axis(
+        ax_wig,
+        title=f"Wigner function (r = {r:.3f})",
+        xlabel="x",
+        ylabel="p",
     )
-    ax1.grid(True)
-    ax1.legend(loc="lower right", fontsize=9)
-    ax1.text(
-        pump + 15,
-        sq_db + 0.15,
-        f"P = {pump:.0f} mW\n$r$ = {r:.4f}\nIntrinsic: {sq_db:.2f} dB",
-        fontsize=10,
-        color=RED,
-        bbox=dict(facecolor=PANEL_BG, edgecolor=RED, boxstyle="round,pad=0.4"),
-    )
+    ax_wig.set_aspect("equal")
 
-    # ---- Wigner Function (Bottom-Left) ----
-    ax2 = fig.add_subplot(gs[1, 1])
-    ax2.contourf(xvec, xvec, W, levels=60, cmap="RdBu_r")
-    ax2.set_title(f"Wigner — Squeezed  (r = {r:.3f})", fontsize=11, fontweight="bold")
-    ax2.set_xlabel("x")
-    ax2.set_ylabel("p")
-    ax2.set_aspect("equal")
-
-    # ---- Photon Number Distribution (Bottom-Right) ----
-    ax3 = fig.add_subplot(gs[1, 2])
     max_n = 20
     ns = np.arange(max_n + 1)
     tanh_r = np.tanh(r)
     cosh_r = np.cosh(r)
     probs = np.zeros(max_n + 1)
-    from math import factorial
-
     for n in range(0, max_n + 1, 2):
         k = n // 2
         probs[n] = (factorial(n) / (factorial(k) ** 2 * 4**k)) * (tanh_r**n) / cosh_r
-    colours_pn = [ACCENT if n % 2 == 0 else "#30363d" for n in ns]
-    ax3.bar(ns, probs, color=colours_pn, edgecolor="#30363d", width=0.7)
-    ax3.set_xlabel("Photon number  $n$")
-    ax3.set_ylabel("$P(n)$")
-    ax3.set_title("Photon Number Distribution", fontsize=11, fontweight="bold")
-    ax3.set_xticks(ns)
-    ax3.grid(axis="y")
+    colors = [SERIES_BLUE if n % 2 == 0 else AXIS_COLOR for n in ns]
+    ax_pn.bar(ns, probs, color=colors, edgecolor=BG_COLOR, width=0.75)
+    style_axis(
+        ax_pn,
+        title="Photon number distribution",
+        xlabel="Photon number n",
+        ylabel="P(n)",
+    )
+    ax_pn.set_xticks(ns)
+    ax_pn.grid(axis="y", alpha=0.25)
 
     fig.suptitle(
-        f"Scenario 2 — Squeezed State  (P = {pump:.0f} mW,  r = {r:.4f})",
-        fontsize=15,
-        fontweight="bold",
-        color=WHITE,
-        y=0.98,
+        f"Scenario 2 - Squeezed state (P = {pump:.0f} mW)",
+        fontsize=12,
+        y=0.985,
     )
     fig.text(
         0.5,
         0.01,
-        "Insight: The Wigner function is elliptical (amplitude-squeezed). "
-        "Photon pairs appear exclusively in even-number states.",
+        f"Intrinsic squeezing at operating point: {intrinsic_sq:.2f} dB.",
         ha="center",
-        fontsize=10,
-        color=GRAY,
+        fontsize=9,
+        color=AXIS_COLOR,
     )
-
-    path = ASSETS_DIR / "dashboard_calibration.png"
-    fig.savefig(path, dpi=150, bbox_inches="tight")
+    apply_layout(fig)
+    out = ASSETS_DIR / "dashboard_calibration.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight")
     plt.close(fig)
-    print(f"[OK] {path}")
+    print(f"[OK] {out}")
 
 
-# ──────────────────────────────────────────────────────────────────
-# Scenario 3 — DECOHERENCE (P = 200 mW, loss = 2.0 dB/cm, L = 5 mm)
-# ──────────────────────────────────────────────────────────────────
-def scenario_decoherence():
-    _dark_style()
-    fig = plt.figure(figsize=(16, 8))
-    gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.35, wspace=0.35)
+def scenario_decoherence() -> None:
+    apply_ieee_style()
+    fig = plt.figure(figsize=(FIGURE_WIDTH_2COL_IN, 4.8))
+    gs = gridspec.GridSpec(2, 2, figure=fig, hspace=0.35, wspace=0.35)
 
     pump = 200.0
     r = calculate_squeezing(pump)
     loss_db_cm = 2.0
-    wg_length_mm = 5.0
-    total_loss_db = loss_db_cm * (wg_length_mm / 10.0)
-    eta_loss = float(db_to_eta(total_loss_db))
+    length_mm = 5.0
+    total_loss_db = loss_db_cm * (length_mm / 10.0)
+    eta = float(db_to_eta(total_loss_db))
 
-    # Pure squeezed state (no loss)
-    W_pure, _, vx_pure, vp_pure, obs_sq_pure = _run_quantum(r, 0.0, 1.0)
-    # Lossy state
-    W_lossy, _, vx_lossy, vp_lossy, obs_sq_lossy = _run_quantum(r, 0.0, eta_loss)
-    # Intrinsic squeezing (constant, pre-loss)
-    intrinsic_sq_db = -10 * np.log10(np.exp(-2 * r))
+    W_pure, _, _, _ = _run_quantum(r, 0.0, 1.0)
+    W_loss, _, _, obs_loss = _run_quantum(r, 0.0, eta)
 
-    # ---- Wigner PURE (Top-Left) ----
-    ax0 = fig.add_subplot(gs[0, 0:2])
-    ax0.contourf(xvec, xvec, W_pure, levels=60, cmap="RdBu_r")
-    ax0.set_title("Pure Squeezed State\n(Loss = 0 dB)", fontsize=11, fontweight="bold", color=GREEN)
-    ax0.set_xlabel("x")
-    ax0.set_ylabel("p")
-    ax0.set_aspect("equal")
+    intrinsic_sq_db = -10.0 * np.log10(np.exp(-2.0 * r))
+    ax_w_pure = fig.add_subplot(gs[0, 0])
+    ax_w_loss = fig.add_subplot(gs[0, 1])
+    ax_var = fig.add_subplot(gs[1, 0])
+    ax_txt = fig.add_subplot(gs[1, 1])
 
-    # ---- Wigner LOSSY (Top-Right) ----
-    ax1 = fig.add_subplot(gs[0, 2:4])
-    ax1.contourf(xvec, xvec, W_lossy, levels=60, cmap="RdBu_r")
-    ax1.set_title(
-        f"After Loss Channel\n(Loss = {total_loss_db:.1f} dB,  η = {eta_loss:.3f})",
+    for axis, title, image in [
+        (ax_w_pure, "Wigner: loss = 0 dB", W_pure),
+        (ax_w_loss, f"Wigner: loss = {total_loss_db:.1f} dB", W_loss),
+    ]:
+        cf = axis.contourf(
+            X_VECTOR,
+            X_VECTOR,
+            image,
+            levels=CONTOUR_LEVELS,
+            cmap="RdBu_r",
+            vmin=-abs(image).max(),
+            vmax=abs(image).max(),
+        )
+        fig.colorbar(cf, ax=axis, fraction=0.046, pad=0.04)
+        style_axis(axis, title=title, xlabel="x", ylabel="p")
+        axis.set_aspect("equal")
+
+    powers = np.linspace(0.0, 500.0, 200)
+    var_curve = []
+    for pw in powers:
+        rr = calculate_squeezing(pw)
+        vx = 0.5 * np.exp(-2.0 * rr)
+        vx = eta * vx + (1 - eta) * 0.5
+        var_curve.append(vx)
+
+    ax_var.plot(
+        powers,
+        var_curve,
+        color=SERIES_BLUE,
+        lw=1.8,
+        label="Var(x) after loss",
+    )
+    ax_var.axhline(0.5, color=AXIS_COLOR, ls="--", lw=1.0, label="Shot-noise limit")
+    ax_var.axvline(pump, color=SERIES_ORANGE, ls="--", lw=1.0)
+    ax_var.scatter([pump], [0.5 * np.exp(-2.0 * r)], color=SERIES_TEAL, s=35)
+    style_axis(
+        ax_var,
+        title="Squeezing degradation from loss",
+        xlabel="Pump power P (mW)",
+        ylabel="Var(x) (SNU; vacuum=0.5)",
+    )
+    ax_var.set_yscale("log")
+    ax_var.legend(loc="lower right", fontsize=7)
+
+    ax_txt.axis("off")
+    ax_txt.set_xlim(0, 1)
+    ax_txt.set_ylim(0, 1)
+    ax_txt.text(
+        0,
+        1.0,
+        "Decoherence summary",
+        transform=ax_txt.transAxes,
         fontsize=11,
         fontweight="bold",
-        color=RED,
+        color=SERIES_PURPLE,
     )
-    ax1.set_xlabel("x")
-    ax1.set_ylabel("p")
-    ax1.set_aspect("equal")
-
-    # ---- Noise Variance Comparison (Bottom-Left) ----
-    ax2 = fig.add_subplot(gs[1, 0:2])
-    powers_nv = np.linspace(0, 500, 200)
-    for eta_val, ls, label, col in [
-        (1.0, "-", "No loss", GREEN),
-        (eta_loss, "--", f"Loss = {total_loss_db:.1f} dB", RED),
-    ]:
-        vx_arr = []
-        for pw in powers_nv:
-            rr = calculate_squeezing(pw)
-            vx = 0.5 * np.exp(-2 * rr)
-            vx = eta_val * vx + (1 - eta_val) * 0.5
-            vx_arr.append(vx)
-        ax2.plot(powers_nv, vx_arr, color=col, ls=ls, lw=2, label=f"Var(x) — {label}")
-    ax2.axhline(0.5, color=GRAY, ls="--", lw=1, label="Shot noise")
-    ax2.axvline(pump, color="#d2a8ff", ls="--", lw=1, alpha=0.7)
-    ax2.set_xlabel("Pump Power  P  (mW)")
-    ax2.set_ylabel("Var(x)")
-    ax2.set_title("Squeezing Degradation from Loss", fontsize=11, fontweight="bold")
-    ax2.set_yscale("log")
-    ax2.legend(fontsize=8, loc="upper right")
-    ax2.grid(True)
-
-    # ---- Summary Metrics (Bottom-Right) ----
-    ax3 = fig.add_subplot(gs[1, 2:4])
-    ax3.axis("off")
-
-    metrics_text = (
-        f"━━━  Decoherence Summary  ━━━\n\n"
-        f"Pump Power:          P = {pump:.0f} mW\n"
-        f"Squeezing Parameter: r = {r:.4f}\n"
-        f"Loss Rate:           {loss_db_cm:.1f} dB/cm\n"
-        f"Waveguide Length:    {wg_length_mm:.1f} mm\n"
-        f"Total Loss:          {total_loss_db:.1f} dB\n"
-        f"Transmissivity:      η = {eta_loss:.4f}\n\n"
-        f"━━━  Squeezing (dB)  ━━━\n\n"
-        f"  Intrinsic (pre-loss):  {intrinsic_sq_db:.2f} dB\n"
-        f"  Observed  (pure):      {obs_sq_pure:.2f} dB\n"
-        f"  Observed  (lossy):     {obs_sq_lossy:.2f} dB\n\n"
-        f"━━━  Quadrature Variances  ━━━\n\n"
-        f"               Pure      Lossy\n"
-        f"  Var(x):      {vx_pure:.4f}    {vx_lossy:.4f}\n"
-        f"  Var(p):      {vp_pure:.4f}    {vp_lossy:.4f}\n"
-        f"  Shot noise:  0.5000    0.5000\n\n"
-        f"Loss reduces observed squeezing;\n"
-        f"intrinsic r stays constant."
+    ax_txt.text(
+        0,
+        0.87,
+        f"Pump power: {pump:.1f} mW",
+        transform=ax_txt.transAxes,
+        fontsize=9,
+        color=AXIS_COLOR,
     )
-    ax3.text(
-        0.05,
-        0.95,
-        metrics_text,
-        transform=ax3.transAxes,
-        fontsize=10,
-        color=WHITE,
-        fontfamily="monospace",
-        va="top",
-        bbox=dict(facecolor=PANEL_BG, edgecolor=GRAY, boxstyle="round,pad=0.8"),
+    ax_txt.text(
+        0,
+        0.79,
+        f"Squeezing parameter: r = {r:.4f}",
+        transform=ax_txt.transAxes,
+        fontsize=9,
+        color=AXIS_COLOR,
+    )
+    ax_txt.text(
+        0,
+        0.71,
+        f"Loss: {loss_db_cm:.1f} dB/cm, length: {length_mm:.1f} mm",
+        transform=ax_txt.transAxes,
+        fontsize=9,
+        color=AXIS_COLOR,
+    )
+    ax_txt.text(
+        0,
+        0.64,
+        f"Total transmissivity: {eta:.4f}",
+        transform=ax_txt.transAxes,
+        fontsize=9,
+        color=AXIS_COLOR,
+    )
+    ax_txt.text(
+        0,
+        0.56,
+        f"Intrinsic (pre-loss): {intrinsic_sq_db:.2f} dB",
+        transform=ax_txt.transAxes,
+        fontsize=9,
+        color=AXIS_COLOR,
+    )
+    ax_txt.text(
+        0,
+        0.48,
+        f"Observed (lossy): {obs_loss:.2f} dB",
+        transform=ax_txt.transAxes,
+        fontsize=9,
+        color=SERIES_ORANGE,
+    )
+    ax_txt.text(
+        0,
+        0.12,
+        "Loss reduces observed squeezing while intrinsic r remains constant.",
+        transform=ax_txt.transAxes,
+        fontsize=9,
+        color=AXIS_COLOR,
     )
 
-    fig.suptitle(
-        "Scenario 3 — Decoherence: Pure vs Lossy Squeezed State",
-        fontsize=15,
-        fontweight="bold",
-        color=WHITE,
-        y=0.98,
-    )
+    fig.suptitle("Scenario 3 - Decoherence and channel loss", fontsize=12, y=0.985)
     fig.text(
         0.5,
         0.01,
-        "Insight: Propagation loss degrades squeezing. The Wigner ellipse "
-        "relaxes toward the vacuum circle — demonstrating decoherence in the CV quantum channel.",
+        "Propagation loss relaxes the squeezed ellipse toward circular vacuum.",
         ha="center",
-        fontsize=10,
-        color=GRAY,
+        fontsize=9,
+        color=AXIS_COLOR,
     )
+    apply_layout(fig)
 
-    path = ASSETS_DIR / "dashboard_decoherence.png"
-    fig.savefig(path, dpi=150, bbox_inches="tight")
+    out = ASSETS_DIR / "dashboard_decoherence.png"
+    fig.savefig(out, dpi=300, bbox_inches="tight")
     plt.close(fig)
-    print(f"[OK] {path}")
+    print(f"[OK] {out}")
 
 
-# ──────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    print("Generating Calibration Dashboard gallery …\n")
+    print("Generating dashboard scenario gallery ...\n")
     scenario_vacuum()
     scenario_calibration()
     scenario_decoherence()
-    print("\nDone! Images saved to:", ASSETS_DIR)
+    print(f"\nDone. Images saved to: {ASSETS_DIR}")

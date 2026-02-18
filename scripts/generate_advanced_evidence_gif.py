@@ -157,11 +157,8 @@ def _compose_sweep_slide(
     y = title_h
     x_left = panel_pad
     x_right = panel_pad + panel_w + gutter
-    left_frame = canvas.crop((0, y, target_w, y + panel_h))
     canvas.paste(left_panel, (x_left, y))
     canvas.paste(right_panel, (x_right, y))
-    # remove unused variable in earlier branch warning by making harmless:
-    left_frame = left_frame  # keep for static analyzers in older Python versions
     return canvas
 
 
@@ -216,22 +213,33 @@ def build_slides(config: RenderConfig) -> list[Image.Image]:
     return slides
 
 
-def build_frames(images: list[Image.Image], config: RenderConfig) -> list[Image.Image]:
+def build_frames(
+    images: list[Image.Image], config: RenderConfig
+) -> tuple[list[Image.Image], list[int]]:
     hold_frames = max(1, int(round(config.hold_seconds * config.fps)))
     fade_frames = max(1, int(round(config.crossfade_seconds * config.fps)))
+    frame_duration_ms = max(1, int(1000 / config.fps))
     frames: list[Image.Image] = []
+    durations: list[int] = []
 
     for idx, image in enumerate(images):
-        frames.extend([image] * hold_frames)
+        for _ in range(hold_frames):
+            frames.append(image)
+            durations.append(frame_duration_ms)
         if idx + 1 < len(images):
             nxt = images[idx + 1]
             for step in range(1, fade_frames + 1):
                 alpha = step / (fade_frames + 1)
                 frames.append(Image.blend(image, nxt, alpha))
-    return frames
+                durations.append(frame_duration_ms)
+    return frames, durations
 
 
-def optimize_and_save(frames: list[Image.Image], config: RenderConfig) -> None:
+def optimize_and_save(
+    frames: list[Image.Image],
+    durations: list[int],
+    config: RenderConfig,
+) -> None:
     if not frames:
         raise RuntimeError("No frames generated for advanced evidence GIF.")
 
@@ -243,13 +251,12 @@ def optimize_and_save(frames: list[Image.Image], config: RenderConfig) -> None:
         )
         for frame in frames
     ]
-    duration_ms = int(1000 / config.fps)
     config.output.parent.mkdir(parents=True, exist_ok=True)
     quantized[0].save(
         config.output,
         save_all=True,
         append_images=quantized[1:],
-        duration=duration_ms,
+        duration=durations,
         loop=0,
         optimize=True,
         disposal=2,
@@ -283,8 +290,8 @@ def main() -> None:
             canvas.paste(slide, (x, y))
             slides[idx] = canvas
 
-    frames = build_frames(slides, config)
-    optimize_and_save(frames, config)
+    frames, durations = build_frames(slides, config)
+    optimize_and_save(frames, durations, config)
 
 
 if __name__ == "__main__":
