@@ -11,7 +11,12 @@ A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware),
 The dashboard sweeps pump power from 0 → 200 mW (squeezed ellipse forms), then increases propagation loss from 0 → 2 dB (decoherence restores the circular vacuum shape). **Loss does not change intrinsic *r*; it reduces observed squeezing (post-loss).**
 
 <p align="center">
-  <img src="assets/calibration_demo.gif" width="950" alt="Calibration demo (power sweep then loss sweep)" />
+  <img
+    src="assets/calibration_demo.gif"
+    width="950"
+    alt="Calibration demo (power sweep then loss sweep)"
+    style="display:block; margin: 0 auto;"
+  />
 </p>
 
 > **Figure 1: Real-time Calibration Simulation.**
@@ -84,6 +89,15 @@ Three tabbed visualizations:
 | **2. Squeezed State** (P = 200 mW) | ![Calibration + Squeezing](assets/dashboard_calibration.png) |
 | **3. Decoherence** (Pure vs Lossy) | ![Decoherence Comparison](assets/dashboard_decoherence.png) |
 
+<details>
+<summary>Scenario Gallery GIF</summary>
+
+<p align="center">
+  <img src="assets/scenario_gallery.gif" width="950" alt="Scenario gallery animation" />
+</p>
+
+</details>
+
 ### Advanced Gallery
 
 | Scenario | Image |
@@ -91,6 +105,26 @@ Three tabbed visualizations:
 | **4. Multi-mode / Time-bin Simulator** | ![Multi-mode Dashboard](assets/dashboard_multimode.png) |
 | **5. Topology Simulator** | ![Topology Dashboard](assets/dashboard_topology.png) |
 | **6. Digital Twin + Control** | ![Digital Twin Dashboard](assets/dashboard_digital_twin.png) |
+
+<details>
+<summary>Advanced Gallery GIF</summary>
+
+<p align="center">
+  <img src="assets/advanced_gallery.gif" width="950" alt="Advanced gallery animation" />
+</p>
+
+</details>
+
+### Evidence Gallery
+
+<details>
+<summary>Advanced Evidence GIF</summary>
+
+<p align="center">
+  <img src="assets/advanced_evidence.gif" width="950" alt="Advanced evidence summary animation" />
+</p>
+
+</details>
 
 ---
 
@@ -143,6 +177,9 @@ streamlit run src/quantum_optical_bus/calibration_app.py
 |------|---------|
 | Generate Gallery Images | `python scripts/generate_dashboard_gallery.py` |
 | Generate Advanced Gallery Images | `python scripts/generate_advanced_dashboard_gallery.py` |
+| Generate Scenario Gallery GIF | `python scripts/generate_scenario_gallery_gif.py` |
+| Generate Advanced Gallery GIF | `python scripts/generate_advanced_gallery_gif.py` |
+| Generate Advanced Evidence GIF | `python scripts/generate_advanced_evidence_gif.py` |
 | Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
 
 Topology config example:

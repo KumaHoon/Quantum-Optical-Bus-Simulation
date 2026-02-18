@@ -65,15 +65,16 @@ ASSETS_DIR = SRC_ROOT / "assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-BG = "#f5f5f5"
-PANEL = "#ffffff"
-ACCENT = "#1a73e8"
-RED = "#c62828"
-GREEN = "#188038"
-ORANGE = "#e37400"
-GRAY = "#5f6368"
-DARK = "#202124"
-LIGHT_BRD = "#dadce0"
+BG = "#0d1117"
+PANEL = "#161b22"
+ACCENT = "#58a6ff"
+RED = "#f97583"
+GREEN = "#3fb950"
+ORANGE = "#d2a8ff"
+GRAY = "#8b949e"
+WHITE = "#c9d1d9"
+DARK = "#c9d1d9"
+LIGHT_BRD = "#30363d"
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,8 @@ class DemoFrame:
 class DemoData:
     frames: tuple[DemoFrame, ...]
     xvec: np.ndarray
+    calibration_powers: np.ndarray
+    calibration_sq_db: np.ndarray
     global_w_max: float
 
 
@@ -102,6 +105,7 @@ class RenderConfig:
     dpi: int
     figure_width: float
     figure_height: float
+    gif_colors: int
     save_mp4: bool
 
 
@@ -115,12 +119,18 @@ def parse_args() -> argparse.Namespace:
         default=ASSETS_DIR / "calibration_demo.gif",
         help="Output GIF path (default: assets/calibration_demo.gif).",
     )
-    parser.add_argument("--n-phase1", type=int, default=40, help="Frames in pump sweep phase.")
-    parser.add_argument("--n-phase2", type=int, default=30, help="Frames in loss sweep phase.")
+    parser.add_argument("--n-phase1", type=int, default=36, help="Frames in pump sweep phase.")
+    parser.add_argument("--n-phase2", type=int, default=24, help="Frames in loss sweep phase.")
     parser.add_argument("--fps", type=float, default=8.0, help="Output frame rate.")
-    parser.add_argument("--dpi", type=int, default=100, help="Figure DPI.")
-    parser.add_argument("--figure-width", type=float, default=12.0, help="Figure width in inches.")
-    parser.add_argument("--figure-height", type=float, default=5.0, help="Figure height in inches.")
+    parser.add_argument("--dpi", type=int, default=95, help="Figure DPI.")
+    parser.add_argument("--figure-width", type=float, default=11.4, help="Figure width in inches.")
+    parser.add_argument("--figure-height", type=float, default=4.7, help="Figure height in inches.")
+    parser.add_argument(
+        "--gif-colors",
+        type=int,
+        default=144,
+        help="GIF palette colors (128-160 is usually sufficient).",
+    )
     parser.add_argument(
         "--save-mp4",
         action="store_true",
@@ -169,9 +179,18 @@ def simulate_frame(
 
 
 def build_demo_data(n_phase1: int, n_phase2: int) -> DemoData:
-    grid = np.linspace(-5.0, 5.0, 120)
+    grid = np.linspace(-5.0, 5.0, 100)
     backend = load_quantum_backend()
     frames: list[DemoFrame] = []
+    calibration_powers = np.linspace(0.0, 200.0, 160)
+    calibration_sq_db_list: list[float] = []
+    for pump in calibration_powers:
+        if pump > 0:
+            intrinsic = backend.calculate_squeezing(float(pump))
+            calibration_sq_db_list.append(-10 * np.log10(np.exp(-2.0 * intrinsic)))
+        else:
+            calibration_sq_db_list.append(0.0)
+    calibration_sq_db = np.array(calibration_sq_db_list, dtype=float)
     global_w_max = 0.0
 
     print(f"Pre-computing {n_phase1 + n_phase2} Wigner frames ...")
@@ -181,7 +200,13 @@ def build_demo_data(n_phase1: int, n_phase2: int) -> DemoData:
         global_w_max = max(global_w_max, float(np.max(np.abs(frame.wigner))))
 
     print("Done.")
-    return DemoData(frames=tuple(frames), xvec=grid, global_w_max=global_w_max)
+    return DemoData(
+        frames=tuple(frames),
+        xvec=grid,
+        calibration_powers=calibration_powers,
+        calibration_sq_db=calibration_sq_db,
+        global_w_max=global_w_max,
+    )
 
 
 def _phase_label(frame_idx: int, n_phase1: int) -> str:
@@ -194,8 +219,8 @@ def configure_axes() -> tuple[plt.Figure, plt.Axes, plt.Axes]:
             "figure.facecolor": BG,
             "axes.facecolor": PANEL,
             "axes.edgecolor": LIGHT_BRD,
-            "axes.labelcolor": DARK,
-            "text.color": DARK,
+            "axes.labelcolor": WHITE,
+            "text.color": WHITE,
             "xtick.color": GRAY,
             "ytick.color": GRAY,
             "font.family": "sans-serif",
@@ -204,7 +229,7 @@ def configure_axes() -> tuple[plt.Figure, plt.Axes, plt.Axes]:
     )
     fig = plt.figure()
     ax_dashboard = fig.add_axes([0.025, 0.08, 0.36, 0.82])
-    ax_wigner = fig.add_axes([0.42, 0.08, 0.56, 0.82])
+    ax_wigner = fig.add_axes([0.41, 0.08, 0.565, 0.82])
     return fig, ax_dashboard, ax_wigner
 
 
@@ -217,7 +242,7 @@ def add_transition_callout(ax: plt.Axes, *, show: bool) -> None:
             9.2,
             0.7,
             boxstyle="round,pad=0.14",
-            facecolor="#e8f0fe",
+            facecolor="#0c2b46",
             edgecolor=ACCENT,
             linewidth=1.2,
             alpha=0.95,
@@ -230,7 +255,7 @@ def add_transition_callout(ax: plt.Axes, *, show: bool) -> None:
         ha="center",
         va="center",
         fontsize=10,
-        color=DARK,
+        color=WHITE,
     )
 
 
@@ -251,7 +276,7 @@ def draw_bar(
             w,
             h,
             boxstyle="round,pad=0.08",
-            facecolor="#f1f3f4",
+            facecolor="#21262d",
             edgecolor=LIGHT_BRD,
             linewidth=0.8,
         )
@@ -285,12 +310,56 @@ def draw_bar(
         ha="left",
         va="center",
         fontsize=12,
-        color=DARK,
+        color=WHITE,
         fontweight="bold",
     )
 
 
-def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int) -> None:
+def draw_calibration_inset(
+    ax: plt.Axes,
+    frame: DemoFrame,
+    powers: np.ndarray,
+    sq_db: np.ndarray,
+) -> None:
+    inset = ax.inset_axes([0.57, 0.66, 0.40, 0.28])
+    inset.set_facecolor("#0f1722")
+    inset.set_title("Calibration curve", fontsize=9, color=WHITE, pad=4)
+    inset.set_xlim(0, 200)
+    inset.set_ylim(0.0, float(sq_db.max() + 0.8))
+    inset.plot(
+        powers,
+        sq_db,
+        color=ACCENT,
+        lw=1.3,
+        alpha=0.95,
+    )
+    inset.scatter(
+        [frame.pump_mw],
+        [frame.intrinsic_sq_db],
+        color=GREEN,
+        s=24,
+        zorder=4,
+    )
+    inset.set_xlabel("Pump (mW)", fontsize=7, color=GRAY)
+    inset.set_ylabel("squeezing (dB)", fontsize=7, color=GRAY)
+    inset.xaxis.set_major_locator(ticker.MaxNLocator(3))
+    inset.yaxis.set_major_locator(ticker.MaxNLocator(3))
+    inset.tick_params(axis="both", colors=GRAY, labelsize=7)
+    inset.grid(alpha=0.18, color=LIGHT_BRD)
+    inset.set_xticks([0, 100, 200])
+    for spine in inset.spines.values():
+        spine.set_color(LIGHT_BRD)
+        spine.set_alpha(0.8)
+
+
+def draw_dashboard(
+    ax: plt.Axes,
+    frame: DemoFrame,
+    frame_idx: int,
+    n_phase1: int,
+    calibration_powers: np.ndarray,
+    calibration_sq_db: np.ndarray,
+) -> None:
     phase = _phase_label(frame_idx, n_phase1)
     phase_color = ACCENT if frame_idx < n_phase1 else ORANGE
     show_callout = frame_idx in {n_phase1, n_phase1 + 1, n_phase1 + 2}
@@ -363,7 +432,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
             9.1,
             1.7,
             boxstyle="round,pad=0.16",
-            facecolor="#fce8e6",
+            facecolor="#251f23",
             edgecolor=RED,
             linewidth=1.5,
         )
@@ -384,7 +453,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
         ha="center",
         fontsize=28,
         fontweight="bold",
-        color=GRAY,
+        color=ACCENT,
     )
     ax.text(
         5.0,
@@ -404,6 +473,7 @@ def draw_dashboard(ax: plt.Axes, frame: DemoFrame, frame_idx: int, n_phase1: int
         fontweight="bold",
         color=RED,
     )
+    draw_calibration_inset(ax, frame, calibration_powers, calibration_sq_db)
 
     add_transition_callout(ax, show=show_callout)
 
@@ -439,25 +509,15 @@ def draw_wigner_panel(ax: plt.Axes, frame: DemoFrame, xvec: np.ndarray, levels: 
         antialiased=True,
         extend="both",
     )
-    ax.contour(
-        xvec,
-        xvec,
-        frame.wigner,
-        levels=20,
-        colors="k",
-        linewidths=0.12,
-        alpha=0.35,
-    )
 
     theta = np.linspace(0.0, 2.0 * np.pi, 200)
     ax.plot(
         np.cos(theta),
         np.sin(theta),
         linestyle="--",
-        color="#555555",
+        color=GRAY,
         linewidth=1.1,
         alpha=0.8,
-        label="Vacuum reference",
     )
     ax.set_xlim(-5.0, 5.0)
     ax.set_ylim(-5.0, 5.0)
@@ -473,17 +533,19 @@ def draw_wigner_panel(ax: plt.Axes, frame: DemoFrame, xvec: np.ndarray, levels: 
         color=DARK,
         pad=8,
     )
-    ax.legend(loc="upper right", fontsize=9, framealpha=0.9, edgecolor=LIGHT_BRD)
+    for spine in ax.spines.values():
+        spine.set_color(LIGHT_BRD)
+        spine.set_alpha(0.9)
     ax.grid(alpha=0.12, color=GRAY)
 
 
-def optimize_gif(tmp_path: Path, output: Path) -> None:
+def optimize_gif(tmp_path: Path, output: Path, *, colors: int) -> None:
     with Image.open(tmp_path) as im:
         frames = []
         for frame in range(im.n_frames):
             im.seek(frame)
             rgb = im.convert("RGB")
-            frames.append(rgb.quantize(colors=180, dither=Image.Dither.NONE))
+            frames.append(rgb.quantize(colors=colors, dither=Image.Dither.NONE))
 
         frames[0].save(
             output,
@@ -521,7 +583,7 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
     levels = np.linspace(
         -max(data.global_w_max, 1e-6),
         max(data.global_w_max, 1e-6),
-        52,
+        36,
     )
 
     fig, ax_dash, ax_wig = configure_axes()
@@ -546,7 +608,14 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
         frame = data.frames[frame_idx]
         ax_dash.cla()
         ax_wig.cla()
-        draw_dashboard(ax_dash, frame, frame_idx, config.n_phase1)
+        draw_dashboard(
+            ax_dash,
+            frame,
+            frame_idx,
+            config.n_phase1,
+            data.calibration_powers,
+            data.calibration_sq_db,
+        )
         draw_wigner_panel(ax_wig, frame, data.xvec, levels)
 
     print(f"Rendering {len(data.frames)} frames at {config.fps:.1f} fps ...")
@@ -554,7 +623,7 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
     tmp_path = config.output.with_suffix(".tmp.gif")
     anim.save(tmp_path, writer=PillowWriter(fps=config.fps), dpi=config.dpi)
     plt.close(fig)
-    optimize_gif(tmp_path, config.output)
+    optimize_gif(tmp_path, config.output, colors=config.gif_colors)
 
     if config.save_mp4:
         save_mp4_if_available(config.output)
@@ -572,6 +641,7 @@ def main() -> None:
         dpi=args.dpi,
         figure_width=args.figure_width,
         figure_height=args.figure_height,
+        gif_colors=args.gif_colors,
         save_mp4=args.save_mp4,
     )
     run_animation(data, render_cfg)
