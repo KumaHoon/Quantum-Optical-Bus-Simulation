@@ -22,53 +22,47 @@ One Waveguide (Hardware), Infinite States (Software)を用いた、光量子計�
 ## アーキテクチャ
 
 ```mermaid
-flowchart LR
-  User([User])
+flowchart TD
+  User([Researcher / Operator]) --> App["Streamlit UI<br/>calibration_app.py<br/>orchestrator"]
 
-  subgraph UI["UI / App (Streamlit)"]
-    App["calibration_app.py<br/>orchestrator + rendering"]
+  subgraph HOT["Hot path: input → mapping/units → simulation → outputs"]
+    Mapping["interface.py<br/>P → r mapping (r=η√P)"]
+    UnitMap["units.py<br/>loss(dB) ↔ transmissivity T"]
+    Quantum["quantum.py<br/>Sgate / Rgate / LossChannel"]
+    Output["Wigner + covariance + metrics"]
   end
 
-  subgraph Lib["quantum_optical_bus (Python package)"]
-    Interface["interface.py<br/>P -> r mapping"]
-    Units["units.py<br/>loss dB <-> T, scaling"]
-    Quantum["quantum.py<br/>single-mode Gaussian ops"]
-    Multi["multimode.py<br/>independent multi-mode/time-bin"]
-    Topology["tdm_topology.py<br/>BS couplings by config"]
-    Est["estimation.py<br/>fit eta & loss"]
-    Ctrl["control.py<br/>phase drift + latency feedback"]
-    HW["hardware.py<br/>optional Meep / analytic mock"]
-  end
+  App -->|sliders: P, loss, θ, topology| Mapping --> Quantum
+  App -->|loss in dB| UnitMap --> Quantum
+  Quantum --> Output --> App
 
-  subgraph Ext["External deps (optional)"]
+  subgraph OPT["Optional model/engine path"]
+    HW["hardware.py<br/>Meep optional / analytical mock"]
     SF["Strawberry Fields<br/>(Gaussian backend)"]
-    Meep["Meep (optional)<br/>eigenmode estimate"]
+    Meep["Meep<br/>mode profile / Aeff / n_eff"]
   end
 
-  User -->|sliders: P, loss, theta, topology| App
-
-  App -->|mode view / params| HW
-  App -->|r=eta*sqrt(P)| Interface
-  App -->|loss in dB| Units
-
-  Interface --> Quantum
-  Units --> Quantum
-  Quantum -->|Wigner, cov, metrics| App
-
-  App --> Multi
-  App --> Topology
-  Multi -->|per-mode metrics| App
-  Topology -->|correlations| App
-
-  App --> Est
-  App --> Ctrl
-  Est -->|eta_hat, loss_hat| App
-  Ctrl -->|residual/error metrics| App
-
+  App -->|hardware params| HW
+  HW -.->|optional profile| App
   Quantum -.-> SF
-  Multi -.-> SF
-  Topology -.-> SF
   HW -.-> Meep
+  HW -.-> Ctxt["mode constraints to<br/>interface/units"]
+  Ctxt --> Mapping
+  Ctxt --> UnitMap
+
+  subgraph FB["Feedback path"]
+    Est["estimation.py<br/>fit η and loss"]
+    Ctrl["control.py<br/>phase drift + latency feedback"]
+  end
+
+  App -->|measured variance / squeezing curves| Est
+  Est -->|eta_hat, loss_hat| Ctrl
+  Ctrl -->|residual / correction| App
+
+  App --> Multi["multimode.py<br/>mode-wise time-bin pipeline"]
+  App --> Top["tdm_topology.py<br/>topology + couplings"]
+  Multi -->|mode metrics| App
+  Top -->|correlations| App
 ```
 
 `calibration_app.py` はUIの入力を集約し、計算モジュールを呼び出して Wigner 表示、二次モーメント、制御・適合診断を更新する調停役です。
@@ -204,7 +198,7 @@ T = 10^{-\frac{\mathrm{loss}_{\mathrm{dB}}}{10}}
 ```
 
 ```math
-\hat{a}_{\text{out}} = \sqrt{T}\,\hat{a}_{\text{in}} + \sqrt{1-T}\,\hat{a}_{\text{vac}}
+\hat{a}_{\mathrm{out}} = \sqrt{T}\,\hat{a}_{\mathrm{in}} + \sqrt{1-T}\,\hat{a}_{\mathrm{vac}}
 ```
 
 ---

@@ -21,54 +21,60 @@ One Waveguide (Hardware), Infinite States (Software)를 기반으로 한 하이�
 
 ## 아키텍처
 
-```mermaid
-flowchart LR
-  User([User])
+아키텍처는 다음 서사로 정리됩니다.
 
-  subgraph UI["UI / App (Streamlit)"]
-    App["calibration_app.py<br/>orchestrator + rendering"]
+1) 맥락(사용자 + Streamlit UI),  
+2) 핵심 핫패스(입력 → 매핑/단위 변환 → 시뮬레이션 → 진단 결과),  
+3) 선택 경로(하드웨어/백엔드),  
+4) 피드백 경로(`estimation.py` → `control.py`).
+
+```mermaid
+flowchart TD
+  %% 맥락
+  User([Researcher / Operator]) --> App["Streamlit UI<br/>calibration_app.py<br/>orchestrator"]
+
+  %% 핫패스
+  subgraph HOT["핫패스: 입력 → 매핑/단위변환 → 시뮬레이션 → 출력"]
+    Mapping["interface.py<br/>P → r 매핑 (r=η√P)"]
+    UnitMap["units.py<br/>loss(dB) ↔ transmissivity T"]
+    Quantum["quantum.py<br/>Sgate / Rgate / LossChannel"]
+    Output["Wigner + covariance + metrics"]
   end
 
-  subgraph Lib["quantum_optical_bus (Python package)"]
-    Interface["interface.py<br/>P -> r mapping"]
-    Units["units.py<br/>loss dB <-> T, scaling"]
-    Quantum["quantum.py<br/>single-mode Gaussian ops"]
-    Multi["multimode.py<br/>independent multi-mode/time-bin"]
-    Topology["tdm_topology.py<br/>BS couplings by config"]
+  App -->|슬라이더: P, loss, θ, topology| Mapping --> Quantum
+  App -->|손실(dB)| UnitMap --> Quantum
+  Quantum --> Output --> App
+
+  %% 선택 경로
+  subgraph OPT["선택 경로: 하드웨어/엔진"]
+    HW["hardware.py<br/>Meep optional / analytical mock"]
+    SF["Strawberry Fields<br/>(Gaussian backend)"]
+    Meep["Meep<br/>mode profile / Aeff / n_eff"]
+  end
+
+  App -->|하드웨어 파라미터| HW
+  HW -.->|선택 profile| App
+  Quantum -.-> SF
+  HW -.-> Meep
+  HW -.->|mode 제약| Constraints["mode constraints"]
+  Constraints --> Mapping
+  Constraints --> UnitMap
+
+  %% 피드백 경로
+  subgraph FB["피드백 경로"]
     Est["estimation.py<br/>fit eta & loss"]
     Ctrl["control.py<br/>phase drift + latency feedback"]
-    HW["hardware.py<br/>optional Meep / analytic mock"]
   end
 
-  subgraph Ext["External deps (optional)"]
-    SF["Strawberry Fields<br/>(Gaussian backend)"]
-    Meep["Meep (optional)<br/>eigenmode estimate"]
-  end
+  App -->|측정 분산/스퀴징 곡선| Est
+  Est -->|eta_hat, loss_hat| Ctrl
+  Ctrl -->|residual / correction| App
 
-  User -->|sliders: P, loss, theta, topology| App
-
-  App -->|mode view / params| HW
-  App -->|r=eta*sqrt(P)| Interface
-  App -->|loss in dB| Units
-
-  Interface --> Quantum
-  Units --> Quantum
-  Quantum -->|Wigner, cov, metrics| App
-
-  App --> Multi
-  App --> Topology
-  Multi -->|per-mode metrics| App
-  Topology -->|correlations| App
-
-  App --> Est
-  App --> Ctrl
-  Est -->|eta_hat, loss_hat| App
-  Ctrl -->|residual/error metrics| App
-
-  Quantum -.-> SF
-  Multi -.-> SF
-  Topology -.-> SF
-  HW -.-> Meep
+  %% 확장 경로
+  App --> Multi["multimode.py<br/>mode-wise time-bin pipeline"]
+  App --> Top["tdm_topology.py<br/>topology + couplings"]
+  Multi -->|mode metrics| App
+  Top -->|correlations| App
 ```
 
 `calibration_app.py`는 UI 입력을 받고 계산 모듈을 호출해 Wigner 시각화, 공분산 지표, 제어/적합 진단 결과를 갱신하는 오케스트레이터입니다.
@@ -210,11 +216,11 @@ r = \eta\sqrt{P}
 (코드 변수는 `loss_dB`이지만, 수식에서는 $\mathrm{loss}_{\mathrm{dB}}$로 표기해 underscore 파싱 오류를 피합니다.)
 
 ```math
-T = 10^{-\frac{\mathrm{loss}_{\mathrm{dB}}}{10}}
+T = 10^{-\mathrm{loss}_{\mathrm{dB}}/10}
 ```
 
 ```math
-\hat{a}_{\text{out}} = \sqrt{T}\,\hat{a}_{\text{in}} + \sqrt{1-T}\,\hat{a}_{\text{vac}}
+\hat{a}_{\mathrm{out}} = \sqrt{T}\,\hat{a}_{\mathrm{in}} + \sqrt{1-T}\,\hat{a}_{\mathrm{vac}}
 ```
 
 ---

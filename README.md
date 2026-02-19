@@ -23,56 +23,60 @@ This figure validates the mapping $r\propto\sqrt{P}$ and the decoherence effect 
 
 ## Architecture
 
-Below is a “component view” of the codebase with clear boundaries (UI vs. library modules) and the main “hot path” (slider inputs → simulation → plots), aligned with common architecture diagram best practices (start with context/boundaries, then zoom into components). :contentReference[oaicite:0]{index=0}
+The diagram below presents the source-driven architecture as:
+
+1) Context (user + dashboard),  
+2) main hot path (input → mapping/units → simulation → diagnostics),  
+3) optional hardware/backend path,  
+4) feedback path (`estimation.py` → `control.py`).
 
 ```mermaid
-flowchart LR
-  User([User])
+flowchart TD
+  %% Context
+  User([Researcher / Operator]) --> App["Streamlit UI<br/>calibration_app.py<br/>Orchestrator"]
 
-  subgraph UI["UI / App (Streamlit)"]
-    App["calibration_app.py<br/>orchestrator + rendering"]
+  %% Hot path
+  subgraph HOT["Hot path: input → mapping/units → simulation → outputs"]
+    Mapping["interface.py<br/>P → r mapping (r=η√P)"]
+    UnitMap["units.py<br/>loss(dB) ↔ transmissivity T"]
+    Quantum["quantum.py<br/>Sgate / Rgate / LossChannel"]
+    Output["Wigner + covariance + metrics"]
   end
 
-  subgraph Lib["quantum_optical_bus (Python package)"]
-    Interface["interface.py<br/>P -> r mapping"]
-    Units["units.py<br/>loss dB <-> T, scaling"]
-    Quantum["quantum.py<br/>single-mode Gaussian ops"]
-    Multi["multimode.py<br/>independent multi-mode/time-bin"]
-    Topology["tdm_topology.py<br/>BS couplings by config"]
-    Est["estimation.py<br/>fit eta & loss"]
-    Ctrl["control.py<br/>phase drift + latency feedback"]
-    HW["hardware.py<br/>optional Meep / analytic mock"]
-  end
+  App -->|sliders: P, loss, θ| Mapping --> Quantum
+  App -->|loss in dB| UnitMap --> Quantum
+  Quantum --> Output --> App
 
-  subgraph Ext["External deps (optional)"]
+  %% Optional path
+  subgraph OPT["Optional model/engine path"]
+    HW["hardware.py<br/>Meep optional / analytic mock"]
     SF["Strawberry Fields<br/>(Gaussian backend)"]
-    Meep["Meep (optional)<br/>eigenmode estimate"]
+    Meep["Meep<br/>mode profile / Aeff / n_eff"]
   end
 
-  User -->|sliders: P, loss, theta, topology| App
-
-  App -->|mode view / params| HW
-  App -->|r=eta*sqrt(P)| Interface
-  App -->|loss in dB| Units
-
-  Interface --> Quantum
-  Units --> Quantum
-  Quantum -->|Wigner, cov, metrics| App
-
-  App --> Multi
-  App --> Topology
-  Multi -->|per-mode metrics| App
-  Topology -->|correlations| App
-
-  App --> Est
-  App --> Ctrl
-  Est -->|eta_hat, loss_hat| App
-  Ctrl -->|residual/error metrics| App
-
+  App -->|hardware params| HW
+  HW -.->|optional profile| App
   Quantum -.-> SF
-  Multi -.-> SF
-  Topology -.-> SF
   HW -.-> Meep
+  HW -.-> Qext["mode constraints to<br/>interface/units"]
+  Qext --> Mapping
+  Qext --> UnitMap
+
+  %% Feedback path
+  subgraph FB["Feedback path"]
+    Est["estimation.py<br/>fit η and loss"]
+    Ctrl["control.py<br/>phase drift + latency feedback"]
+  end
+
+  App -->|measured variance/squeezing curves| Est
+  Est -->|eta_hat, loss_hat| Ctrl
+  Ctrl -->|residual / correction updates| App
+
+  %% Extensions
+  App --> Multi["multimode.py<br/>mode-wise time-bin pipeline"]
+  App --> Top["tdm_topology.py<br/>topology + couplings"]
+  Multi -->|mode metrics| App
+  Top -->|correlations| App
 ```
 
 The dashboard application (`src/quantum_optical_bus/calibration_app.py`) is the orchestrator: it reads UI inputs, runs the computational modules, and renders Wigner functions, quadrature plots, and control/fitting diagnostics.
@@ -246,7 +250,7 @@ $$
 T = 10^{-\frac{\mathrm{loss}_{\mathrm{dB}}}{10}}
 $$
 
-This avoids KaTeX/LaTeX underscore parsing issues (the code variable is `loss_dB`, while the math uses $\mathrm{loss}_{\mathrm{dB}}$). :contentReference[oaicite:1]{index=1}
+This avoids KaTeX/LaTeX underscore parsing issues (the code variable is `loss_dB`, while the math uses $\mathrm{loss}_{\mathrm{dB}}$).
 
 The forward relation for reporting power loss is:
 
@@ -257,7 +261,7 @@ $$
 and the channel model is:
 
 $$
-\hat{a}_{\text{out}}=\sqrt{T}\,\hat{a}_{\text{in}}+\sqrt{1-T}\,\hat{a}_{\text{vac}}
+\hat{a}_{\mathrm{out}}=\sqrt{T}\,\hat{a}_{\mathrm{in}}+\sqrt{1-T}\,\hat{a}_{\mathrm{vac}}
 $$
 
 Observed squeezing is derived from output covariances and tends to zero as $T\to 0$.
