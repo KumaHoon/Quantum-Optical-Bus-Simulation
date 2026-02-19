@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml)
 
-English | [æ—¥æœ¬èªž](docs/README.ja.md) | [í•œêµ­ì–´](docs/README.ko.md) | [ä¸­æ–‡](docs/README.zh.md)
+English | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [中文](docs/README.zh.md)
 
 A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware), Infinite States (Software)"**.
 It includes a calibration dashboard that maps classical pump power to continuous-variable (CV) quantum states with explicit mapping
@@ -34,40 +34,48 @@ effect of the pure-loss channel.
 
 ```mermaid
 flowchart LR
-  APP["calibration_app.py<br/>orchestrator"]
-  H["hardware.py<br/>Meep optional / analytical mock"]
-  I["interface.py<br/>P -> r mapping"]
-  U["units.py<br/>loss dB <-> eta conversion"]
-  Q["quantum.py<br/>single-mode Sgate/Rgate/LossChannel"]
-  M["multimode.py<br/>independent multi-mode circuits"]
-  T["tdm_topology.py<br/>topology + BS couplings"]
-  E["estimation.py<br/>fit eta and loss"]
-  C["control.py<br/>phase drift and latency feedback"]
-  L["calibration_app.py"]
+  subgraph UI["UI / Orchestration"]
+    APP["calibration_app.py<br/>Streamlit orchestrator"]
+  end
 
-  APP --> H
+  subgraph PREP["Preparation"]
+    H["hardware.py<br/>Meep optional / analytical mock"]
+    I["interface.py<br/>P -> η√P mapping"]
+    U["units.py<br/>loss dB ↔ transmissivity"]
+  end
+
+  subgraph CORE["Quantum simulators"]
+    Q["quantum.py<br/>Sgate / Rgate / LossChannel"]
+    M["multimode.py<br/>independent mode channels"]
+    T["tdm_topology.py<br/>BS topology couplings"]
+  end
+
+  subgraph TWIN["Digital twin"]
+    E["estimation.py<br/>fit η and loss"]
+    C["control.py<br/>phase drift + latency feedback"]
+  end
+
   APP --> I
   APP --> U
+  APP --> H
   APP --> Q
   APP --> M
   APP --> T
   APP --> E
   APP --> C
 
-  H --> I
+  H -.optional.-> I
   I --> Q
   I --> M
   I --> T
-  U --> APP
   U --> Q
   U --> M
   U --> T
-
-  Q --> L
-  M --> L
-  T --> L
-  E --> L
-  C --> L
+  Q --> APP
+  M --> APP
+  T --> APP
+  E --> C
+  C --> APP
 ```
 
 The dashboard application (`calibration_app.py`) is the orchestrator:
@@ -123,14 +131,13 @@ The roadmap adds a hardware-aware loop:
 | **2. Squeezed State (P = 200 mW)** | ![Calibration + Squeezing](assets/dashboard_calibration.png) |
 | **3. Decoherence (Pure vs Lossy)** | ![Decoherence Comparison](assets/dashboard_decoherence.png) |
 
-<details>
-<summary>Scenario Gallery GIF</summary>
+### Scenario Gallery GIF
+
+> **Figure 3: Scenario gallery animation.**
 
 <p align="center">
 <img src="assets/scenario_gallery.gif" width="950" alt="Scenario gallery animation" />
 </p>
-
-</details>
 
 ## Advanced Gallery
 
@@ -140,25 +147,23 @@ The roadmap adds a hardware-aware loop:
 | **5. Topology Simulator** | ![Topology Dashboard](assets/dashboard_topology.png) |
 | **6. Digital Twin + Control** | ![Digital Twin Dashboard](assets/dashboard_digital_twin.png) |
 
-<details>
-<summary>Advanced Gallery GIF</summary>
+### Advanced Gallery GIF
+
+> **Figure 4: Advanced gallery animation.**
 
 <p align="center">
 <img src="assets/advanced_gallery.gif" width="950" alt="Advanced gallery animation" />
 </p>
 
-</details>
-
 ## Evidence Gallery
 
-<details>
-<summary>Advanced Evidence GIF</summary>
+### Advanced Evidence GIF
+
+> **Figure 5: Advanced evidence summary animation.**
 
 <p align="center">
 <img src="assets/advanced_evidence.gif" width="950" alt="Advanced evidence summary animation" />
 </p>
-
-</details>
 
 ---
 
@@ -316,4 +321,5 @@ Roadmap and phased acceptance criteria are documented in `docs/ROADMAP.md`.
     +-- ...                           # GIF and evidence generators
 +-- assets/                            # Generated images and demo artifacts
 ```
+
 
