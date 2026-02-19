@@ -12,6 +12,17 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from quantum_optical_bus.viz_style_ieee import (
+    FIGURE_WIDTH_2COL_IN,
+    SERIES_BLUE,
+    SERIES_ORANGE,
+    SERIES_TEAL,
+    apply_ieee_style,
+    ieee_figsize,
+    save_ieee,
+    style_axis,
+)
+
 
 @dataclass(frozen=True)
 class DriftProfile:
@@ -182,47 +193,68 @@ def run_drift_recovery(
 
 def plot_recovery(trace: RecoveryTrace, output_path: Path) -> None:
     """Create the stability/recovery artifact."""
+    apply_ieee_style(base_font_size=10, tick_font_size=9)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(3, 1, figsize=(10, 9))
+    fig, axes = plt.subplots(3, 1, figsize=ieee_figsize(width_in=FIGURE_WIDTH_2COL_IN, aspect=1.06))
 
     axes[0].plot(trace.time_hours, trace.phase_rad, label="true phase")
     axes[0].plot(trace.time_hours, trace.estimated_phase, label="estimated phase")
     axes[0].plot(trace.time_hours, trace.command, label="applied correction")
-    axes[0].set_title("24h Drift Recovery: Drift, Estimator, Controller")
-    axes[0].set_xlabel("Time [h]")
-    axes[0].set_ylabel("Phase [rad]")
+    style_axis(
+        axes[0],
+        title="24h Drift Recovery: Drift, Estimator, Controller",
+        xlabel="Time (hours)",
+        ylabel="Phase (rad)",
+    )
     axes[0].legend(loc="upper right")
     axes[0].grid(alpha=0.25)
 
     axes[1].plot(trace.time_hours, trace.residual_rad)
-    axes[1].set_title("Residual phase after correction")
-    axes[1].set_xlabel("Time [h]")
-    axes[1].set_ylabel("Residual [rad]")
+    style_axis(
+        axes[1],
+        title="Residual phase after correction",
+        xlabel="Time (hours)",
+        ylabel="Residual phase (rad)",
+    )
     axes[1].grid(alpha=0.25)
     axes[1].axhline(0.0, color="black", linewidth=1, alpha=0.4)
 
     ax_loss = axes[2]
     ax_gain = ax_loss.twinx()
-    ax_loss.plot(trace.time_hours, trace.loss_db, color="tab:blue", label="loss [dB]")
-    ax_loss.plot(trace.time_hours, trace.squeezing_db, color="tab:orange", label="squeezing [dB]")
-    ax_loss.set_xlabel("Time [h]")
-    ax_loss.set_ylabel("Loss / squeezing")
+    ax_loss.plot(
+        trace.time_hours,
+        trace.loss_db,
+        color=SERIES_BLUE,
+        label="loss (dB)",
+    )
+    ax_loss.plot(
+        trace.time_hours,
+        trace.squeezing_db,
+        color=SERIES_ORANGE,
+        label="squeezing (dB)",
+    )
+    ax_loss.set_xlabel("Time (hours)")
+    ax_loss.set_ylabel("Loss / squeezing (dB)")
     ax_loss.set_title("Recovered drift, measured loss/squeezing, adaptive gain")
+    ax_loss.tick_params(axis="y", colors=SERIES_BLUE)
+    ax_loss.grid(alpha=0.25)
 
     ax_gain.plot(
         trace.time_hours,
         trace.controller_gain,
-        color="tab:green",
+        color=SERIES_TEAL,
         linestyle="--",
         label="controller gain",
     )
-    ax_gain.set_ylabel("Controller gain")
+    ax_gain.set_ylabel("Controller gain (unitless)")
+    ax_gain.tick_params(axis="y", colors=SERIES_TEAL)
 
-    ax_loss.grid(alpha=0.25)
-    ax_loss.legend(loc="upper left")
+    handles = [*ax_loss.get_lines(), *ax_gain.get_lines()]
+    labels = [line.get_label() for line in handles]
+    ax_loss.legend(handles, labels, loc="upper left")
 
     fig.tight_layout()
-    plt.savefig(output_path, dpi=150)
+    save_ieee(fig, output_path, dpi=300)
     plt.close(fig)
 
 

@@ -1,4 +1,4 @@
-﻿"""Generate a crossfading scenario gallery GIF from dashboard snapshots."""
+"""Generate a crossfading scenario gallery GIF from dashboard snapshots."""
 
 from __future__ import annotations
 
@@ -90,7 +90,10 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
     if image.width > target_width:
         scale = target_width / image.width
         image = image.resize(
-            (target_width, max(1, int(image.height * scale)),),
+            (
+                target_width,
+                max(1, int(image.height * scale)),
+            ),
             Image.Resampling.LANCZOS,
         )
 

@@ -44,18 +44,27 @@ from quantum_optical_bus.tdm_topology import simulate_topology
 from quantum_optical_bus.estimation import fit_eta_and_loss
 from quantum_optical_bus.control import simulate_phase_drift, apply_feedback_with_latency
 from quantum_optical_bus.units import db_to_eta
-from quantum_optical_bus.viz_style import apply_ieee_style
+from quantum_optical_bus.viz_style_ieee import (
+    apply_ieee_axes,
+    ieee_figsize,
+    set_ieee_rcparams,
+)
 
 # ──────────────────────────────────────────────────────────────────────
 # Page configuration
 # ──────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="TDM Optical Bus — Calibration Dashboard",
-    page_icon="🔬",
+    page_title="TDM Optical Bus - Calibration Dashboard",
+    page_icon="chart_with_upwards_trend",
     layout="wide",
 )
 
-apply_ieee_style(base_font_size=10, tick_font_size=9)
+set_ieee_rcparams(base_font_size=10, tick_font_size=9)
+
+
+def apply_axes(ax: plt.Axes, xlabel: str, ylabel: str, *, title: str | None = None) -> None:
+    apply_ieee_axes(ax, xlabel=xlabel, ylabel=ylabel, title=title)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Custom CSS for a polished, premium look
@@ -71,9 +80,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ══════════════════════════════════════════════════════════════════════
+#
 #  SIDEBAR — Experimental Setup
-# ══════════════════════════════════════════════════════════════════════
+#
 with st.sidebar:
     st.markdown("## 🔧 Experimental Setup")
 
@@ -131,9 +140,9 @@ with st.sidebar:
     st.divider()
     st.caption("Built with Strawberry Fields + Meep")
 
-# ══════════════════════════════════════════════════════════════════════
+#
 #  DERIVED PHYSICS
-# ══════════════════════════════════════════════════════════════════════
+#
 # Coupling efficiency η  (phenomenological; η√P → r)
 ETA = calculate_squeezing(1.0)
 
@@ -144,9 +153,9 @@ intrinsic_squeezing_db = -10 * np.log10(np.exp(-2 * r_param)) if r_param > 0 els
 total_loss_db = loss_db_cm * (wg_length_mm / 10.0)  # mm → cm
 eta_loss = float(db_to_eta(total_loss_db))
 
-# ══════════════════════════════════════════════════════════════════════
+#
 #  MAIN AREA — Header
-# ══════════════════════════════════════════════════════════════════════
+#
 st.markdown(
     """
     # 🔬 TDM Optical Bus — Hardware-to-Quantum Calibration
@@ -154,9 +163,9 @@ st.markdown(
     """
 )
 
-# ══════════════════════════════════════════════════════════════════════
+#
 #  SECTION 1 — Phase 1: The Device
-# ══════════════════════════════════════════════════════════════════════
+#
 st.markdown("---")
 st.markdown("### Phase 1 · The Device — LN Ridge Waveguide")
 
@@ -168,11 +177,14 @@ with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.St
     n_eff, mode_area, ez_data, extent = run_hardware_simulation(cfg)
 
 with col_hw_plot:
-    fig_hw, ax_hw = plt.subplots(figsize=(5, 4))
+    fig_hw, ax_hw = plt.subplots(figsize=ieee_figsize(width_in=5.2, aspect=0.72))
     im = ax_hw.imshow(ez_data, extent=extent, cmap="RdBu", origin="lower", aspect="auto")
-    ax_hw.set_xlabel("x  (\u03bcm)")
-    ax_hw.set_ylabel("y  (\u03bcm)")
-    ax_hw.set_title("Fundamental Mode Profile  |Ez|", fontsize=12)
+    apply_axes(
+        ax_hw,
+        "Transverse position $x$ (\u00b5m)",
+        "Vertical position $y$ (\u00b5m)",
+        title="Fundamental mode profile |Ez|",
+    )
     fig_hw.colorbar(im, ax=ax_hw, fraction=0.046, pad=0.04)
     fig_hw.tight_layout()
     st.pyplot(fig_hw)
@@ -190,9 +202,9 @@ with col_hw_info:
         """
     )
 
-# ══════════════════════════════════════════════════════════════════════
+#
 #  SECTION 2 — Phase 2: The Calibration Bridge (THE CORE)
-# ══════════════════════════════════════════════════════════════════════
+#
 st.markdown("---")
 st.markdown("### Phase 2 · The Calibration Bridge")
 
@@ -240,13 +252,23 @@ with col_formula:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
+# Reference operating points
+st.markdown(
+    """
+    **Reference operating points (single-line):**
+    - Vacuum Baseline ($P = 0$ mW): un-squeezed, lossless channel
+    - Calibration sweep (0 \u2192 500 mW): intrinsic squeezing build-up
+    - High-loss corner ($P = 200$ mW, loss = 2 dB): observed squeezing degradation
+    """
+)
+
 # Live P → r curve
 powers_curve = np.linspace(0, 500, 300)
 r_curve = calculate_squeezing(powers_curve)
 db_curve = -10 * np.log10(np.exp(-2 * r_curve))
 
 st.markdown("#### Power-Squeezing Calibration Curve")
-fig_cal, ax_cal = plt.subplots(figsize=(8, 3.5))
+fig_cal, ax_cal = plt.subplots(figsize=ieee_figsize(width_in=7.16, aspect=0.49))
 ax_cal.plot(powers_curve, db_curve, color="#58a6ff", linewidth=2, label=r"$-10\log_{10}(e^{-2r})$")
 ax_cal.axvline(
     pump_power_mw,
@@ -257,18 +279,21 @@ ax_cal.axvline(
 )
 ax_cal.axhline(intrinsic_squeezing_db, color="#f97583", linestyle=":", linewidth=0.8, alpha=0.6)
 ax_cal.scatter([pump_power_mw], [intrinsic_squeezing_db], color="#f97583", zorder=5, s=60)
-ax_cal.set_xlabel("Pump power $P$ (mW)")
-ax_cal.set_ylabel("Intrinsic squeezing (pre-loss), dB")
-ax_cal.set_title(r"Calibration curve: $r = \eta\sqrt{P}$")
+apply_axes(
+    ax_cal,
+    "Pump power $P$ (mW)",
+    "Intrinsic squeezing (pre-loss) (dB)",
+    title=r"Calibration curve: $r=\eta\sqrt{P}$",
+)
 ax_cal.legend(loc="lower right", fontsize=8)
 ax_cal.grid(True, alpha=0.25)
 fig_cal.tight_layout()
 st.pyplot(fig_cal)
 plt.close(fig_cal)
 
-# ══════════════════════════════════════════════════════════════════════
+#
 #  SECTION 3 — Phase 3: Quantum Result
-# ══════════════════════════════════════════════════════════════════════
+#
 st.markdown("---")
 st.markdown("### Phase 3 · Quantum Result")
 
@@ -382,14 +407,13 @@ W, mean_photon, var_x, var_p, observed_sq_db, observed_antisq_db = _run_quantum(
 with tab_wigner:
     col_wig, col_wig_info = st.columns([3, 1])
     with col_wig:
-        fig_w, ax_w = plt.subplots(figsize=(6, 5))
+        fig_w, ax_w = plt.subplots(figsize=ieee_figsize(width_in=7.16, aspect=0.7))
         cf = ax_w.contourf(xvec, xvec, W, levels=60, cmap="RdBu_r")
-        ax_w.set_xlabel(r"$x$ (SNU)")
-        ax_w.set_ylabel(r"$p$ (SNU)")
+        apply_axes(ax_w, "$x$ (SNU)", "$p$ (SNU)")
         title_parts = f"Wigner Function  (r={r_param:.3f}, \u03b8={phase_rad:.2f})"
         if loss_db_cm > 0:
             title_parts += f"  |  loss={total_loss_db:.2f} dB"
-        ax_w.set_title(title_parts, fontsize=11)
+        apply_axes(ax_w, "$x$ (SNU)", "$p$ (SNU)", title=title_parts)
         fig_w.colorbar(cf, ax=ax_w, fraction=0.046, pad=0.04)
         ax_w.set_aspect("equal")
         fig_w.tight_layout()
@@ -415,7 +439,7 @@ with tab_wigner:
         st.metric("Mean Photon #", f"{mean_photon:.2f}")
         if loss_db_cm > 0:
             st.info(
-                "🔍 Loss changes the **observed squeezing** (output state), "
+                "Loss changes the **observed squeezing** (output state), "
                 "not the intrinsic *r* parameter. The Wigner function becomes "
                 "more circular as loss increases — this is decoherence."
             )
@@ -447,12 +471,15 @@ with tab_photon:
             probs = 0.7 * probs + 0.3 * thermal
             probs /= probs.sum() if probs.sum() > 0 else 1.0
 
-    fig_pn, ax_pn = plt.subplots(figsize=(8, 4))
+    fig_pn, ax_pn = plt.subplots(figsize=ieee_figsize(width_in=6.8, aspect=0.48))
     colors_pn = ["#58a6ff" if n % 2 == 0 else "#8b949e" for n in ns]
     ax_pn.bar(ns, probs, color=colors_pn, edgecolor="#30363d", linewidth=0.5)
-    ax_pn.set_xlabel("Photon number  n")
-    ax_pn.set_ylabel("P(n)")
-    ax_pn.set_title("Photon Number Distribution")
+    apply_axes(
+        ax_pn,
+        "Photon number index $n$ (unitless)",
+        "Probability $P(n)$",
+        title="Photon number distribution",
+    )
     ax_pn.set_xticks(ns)
     ax_pn.grid(axis="y", alpha=0.25)
     fig_pn.tight_layout()
@@ -468,7 +495,7 @@ with tab_noise:
 
     col_var_plot, col_var_info = st.columns([3, 1])
     with col_var_plot:
-        fig_nv, ax_nv = plt.subplots(figsize=(8, 4))
+        fig_nv, ax_nv = plt.subplots(figsize=ieee_figsize(width_in=7.2, aspect=0.48))
 
         # Sweep power for variance curves
         powers_nv = np.linspace(0, 500, 200)
@@ -499,9 +526,12 @@ with tab_noise:
         ax_nv.axvline(pump_power_mw, color="#d2a8ff", linestyle="--", linewidth=1, alpha=0.7)
         ax_nv.scatter([pump_power_mw], [var_x], color="#3fb950", zorder=5, s=50)
         ax_nv.scatter([pump_power_mw], [var_p], color="#f97583", zorder=5, s=50)
-        ax_nv.set_xlabel("Pump power P (mW)")
-        ax_nv.set_ylabel("Quadrature variance (unit, vacuum=0.5)")
-        ax_nv.set_title("Noise variance vs. pump power")
+        apply_axes(
+            ax_nv,
+            "Pump power $P$ (mW)",
+            "Variance (SNU; vacuum=0.5)",
+            title="Variance vs. pump power",
+        )
         ax_nv.set_yscale("log")
         ax_nv.legend(loc="upper left")
         ax_nv.grid(True, alpha=0.25)
@@ -524,7 +554,7 @@ with tab_noise:
             """
         )
 
-# ══════════════════════════════════════════════════════════════════════
+#
 # ------------------------------------------------------------------------------
 # SECTION 4 - Advanced Simulators / Digital Twin
 # ------------------------------------------------------------------------------
@@ -562,7 +592,7 @@ with tab_mm:
         mm_m2.metric("Avg observed sq", f"{float(np.mean(mm_result.observed_sq_db)):.2f} dB")
         mm_m3.metric("Mean photons/bin", f"{float(np.mean(mm_result.mean_photon)):.2f}")
 
-        fig_mm, axs_mm = plt.subplots(1, 2, figsize=(11, 4.2))
+        fig_mm, axs_mm = plt.subplots(1, 2, figsize=ieee_figsize(width_in=7.16, aspect=0.52))
         bins = np.arange(mm_bins)
         axs_mm[0].plot(
             bins, mm_result.observed_sq_db, marker="o", color="#58a6ff", label="Observed sq (dB)"
@@ -574,18 +604,24 @@ with tab_mm:
             color="#f97583",
             label="Observed anti-sq (dB)",
         )
-        axs_mm[0].set_xlabel("Time bin index")
-        axs_mm[0].set_ylabel("Squeezing (dB)")
-        axs_mm[0].set_title("Per-bin squeezing metrics")
+        apply_axes(
+            axs_mm[0],
+            "Time bin index (unitless)",
+            "Squeezing (dB)",
+            title="Per-bin squeezing metrics",
+        )
         axs_mm[0].grid(True, alpha=0.3)
         axs_mm[0].legend(loc="best")
 
         axs_mm[1].plot(bins, mm_result.var_x, marker="o", color="#3fb950", label="Var(x)")
         axs_mm[1].plot(bins, mm_result.var_p, marker="o", color="#f97583", label="Var(p)")
         axs_mm[1].axhline(0.5, color="#8b949e", ls="--", lw=1, label="Vacuum")
-        axs_mm[1].set_xlabel("Time bin index")
-        axs_mm[1].set_ylabel("Variance (SNU; vacuum=0.5)")
-        axs_mm[1].set_title("Per-bin quadrature variances")
+        apply_axes(
+            axs_mm[1],
+            "Time bin index (unitless)",
+            "Variance (SNU; vacuum=0.5)",
+            title="Per-bin quadrature variances",
+        )
         axs_mm[1].grid(True, alpha=0.3)
         axs_mm[1].legend(loc="best")
         fig_mm.tight_layout()
@@ -593,11 +629,9 @@ with tab_mm:
         plt.close(fig_mm)
 
         if mm_result.wigner is not None:
-            fig_mm_w, ax_mm_w = plt.subplots(figsize=(4.8, 4.2))
+            fig_mm_w, ax_mm_w = plt.subplots(figsize=ieee_figsize(width_in=5.0, aspect=0.86))
             ax_mm_w.contourf(xvec, xvec, mm_result.wigner, levels=60, cmap="RdBu_r")
-            ax_mm_w.set_title(f"Wigner (bin {mm_wigner_mode})")
-            ax_mm_w.set_xlabel("x (SNU)")
-            ax_mm_w.set_ylabel("p (SNU)")
+            apply_axes(ax_mm_w, "x (SNU)", "p (SNU)", title=f"Wigner (bin {mm_wigner_mode})")
             ax_mm_w.set_aspect("equal")
             fig_mm_w.tight_layout()
             st.pyplot(fig_mm_w)
@@ -682,24 +716,24 @@ with tab_topology:
         top_m2.metric("Max |corr_x offdiag|", f"{float(np.max(np.abs(offdiag_x))):.3f}")
         top_m3.metric("Max |corr_p offdiag|", f"{float(np.max(np.abs(offdiag_p))):.3f}")
 
-        fig_top, axs_top = plt.subplots(1, 2, figsize=(11, 4.2))
+        fig_top, axs_top = plt.subplots(1, 2, figsize=ieee_figsize(width_in=7.16, aspect=0.52))
         im_x = axs_top[0].imshow(top_result.corr_x, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
-        axs_top[0].set_title("Corr(X) heatmap")
-        axs_top[0].set_xlabel("j")
-        axs_top[0].set_ylabel("i")
+        apply_axes(
+            axs_top[0], "Index $j$ (unitless)", "Index $i$ (unitless)", title="Corr(X) heatmap"
+        )
         fig_top.colorbar(im_x, ax=axs_top[0], fraction=0.046, pad=0.04)
 
         im_p = axs_top[1].imshow(top_result.corr_p, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
-        axs_top[1].set_title("Corr(P) heatmap")
-        axs_top[1].set_xlabel("j")
-        axs_top[1].set_ylabel("i")
+        apply_axes(
+            axs_top[1], "Index $j$ (unitless)", "Index $i$ (unitless)", title="Corr(P) heatmap"
+        )
         fig_top.colorbar(im_p, ax=axs_top[1], fraction=0.046, pad=0.04)
         fig_top.tight_layout()
         st.pyplot(fig_top)
         plt.close(fig_top)
 
         if top_n > 1:
-            fig_nei, ax_nei = plt.subplots(figsize=(8.5, 3.3))
+            fig_nei, ax_nei = plt.subplots(figsize=ieee_figsize(width_in=7.16, aspect=0.45))
             neighbors = np.arange(top_n - 1)
             ax_nei.plot(
                 neighbors,
@@ -716,9 +750,12 @@ with tab_topology:
                 label="Cov(p_i,p_{i+1})",
             )
             ax_nei.axhline(0.0, color="#8b949e", ls="--", lw=1)
-            ax_nei.set_xlabel("Neighbor pair index (unitless)")
-            ax_nei.set_ylabel("Covariance (SNU)")
-            ax_nei.set_title("Neighbor correlation metrics")
+            apply_axes(
+                ax_nei,
+                "Neighbor pair index (unitless)",
+                "Covariance (SNU)",
+                title="Neighbor correlation metrics",
+            )
             ax_nei.grid(True, alpha=0.3)
             ax_nei.legend(loc="best")
             fig_nei.tight_layout()
@@ -754,7 +791,7 @@ with tab_twin:
         m2.metric("loss dB (true / fit)", f"{twin_loss_true:.3f} / {twin_result['loss_hat']:.3f}")
         m3.metric("fit RMSE", f"{twin_result['fit_diag']['rmse']:.5f}")
 
-        fig_fit, axs_fit = plt.subplots(1, 2, figsize=(11, 4.2))
+        fig_fit, axs_fit = plt.subplots(1, 2, figsize=ieee_figsize(width_in=7.16, aspect=0.58))
         axs_fit[0].scatter(
             twin_result["powers"],
             twin_result["measured_var_x"],
@@ -770,9 +807,12 @@ with tab_twin:
             lw=2,
             label="Fitted model Var(x)",
         )
-        axs_fit[0].set_xlabel("Pump power $P$ (mW)")
-        axs_fit[0].set_ylabel("Var(x) (SNU; vacuum=0.5)")
-        axs_fit[0].set_title("Digital twin fit")
+        apply_axes(
+            axs_fit[0],
+            "Pump power $P$ (mW)",
+            "Var(x) (SNU; vacuum=0.5)",
+            title="Digital twin fit",
+        )
         axs_fit[0].grid(True, alpha=0.3)
         axs_fit[0].legend(loc="best")
 
@@ -783,7 +823,7 @@ with tab_twin:
             color="#f97583",
             label="RMS residual phase error",
         )
-        axs_fit[1].set_xlabel("Latency steps (index)")
+        axs_fit[1].set_xlabel("Latency step index (unitless)")
         axs_fit[1].set_ylabel("RMS residual phase error (rad)", color="#f97583")
         axs_fit[1].tick_params(axis="y", colors="#f97583")
         axs_fit[1].grid(True, alpha=0.3)
@@ -812,7 +852,7 @@ with tab_twin:
 # ------------------------------------------------------------------------------
 # Footer
 #  Footer
-# ══════════════════════════════════════════════════════════════════════
+#
 st.markdown("---")
 st.markdown(
     """

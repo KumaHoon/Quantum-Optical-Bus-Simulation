@@ -80,7 +80,9 @@ OBSERVED_COLOR = SERIES_ORANGE
 TEXT_COLOR = "#c9d1d9"
 GRID_COLOR = "#30363d"
 CONTOUR_LEVELS = 18
-CAL_LABEL_SIZE = 22
+CAL_LABEL_SIZE = 20
+WIGNER_LABELPAD = 11
+DB_LABEL_SPACING_PT = 7
 
 
 @dataclass(frozen=True)
@@ -240,7 +242,13 @@ def configure_axes() -> tuple[plt.Figure, plt.Axes, plt.Axes, plt.Axes]:
     )
     ax_dashboard = fig.add_subplot(gs[0, 0])
     ax_wigner = fig.add_subplot(gs[0, 1])
-    ax_calibration = fig.add_subplot(gs[1, :])
+    cal_center = gs[1, :].subgridspec(
+        ncols=3,
+        nrows=1,
+        width_ratios=[0.15, 0.70, 0.15],
+        wspace=0.0,
+    )
+    ax_calibration = fig.add_subplot(cal_center[0, 1])
     return fig, ax_dashboard, ax_wigner, ax_calibration
 
 
@@ -463,8 +471,17 @@ def draw_dashboard(
     )
 
     intrinsic_label_t = mtrans.ScaledTranslation(0, -4 / 72, fig.dpi_scale_trans)
-    intrinsic_value_t = mtrans.ScaledTranslation(0, -10 / 72, fig.dpi_scale_trans)
-    observed_value_t = mtrans.ScaledTranslation(0, -10 / 72, fig.dpi_scale_trans)
+    intrinsic_value_t = mtrans.ScaledTranslation(
+        0,
+        -(4 + DB_LABEL_SPACING_PT) / 72,
+        fig.dpi_scale_trans,
+    )
+    observed_label_t = mtrans.ScaledTranslation(0, -4 / 72, fig.dpi_scale_trans)
+    observed_value_t = mtrans.ScaledTranslation(
+        0,
+        -(4 + DB_LABEL_SPACING_PT) / 72,
+        fig.dpi_scale_trans,
+    )
 
     ax.add_patch(
         mpatches.FancyBboxPatch(
@@ -482,6 +499,7 @@ def draw_dashboard(
         4.32,
         "INTRINSIC SQUEEZING (pre-loss)",
         ha="center",
+        transform=ax.transData + intrinsic_label_t,
         fontsize=9,
         color=AXIS_COLOR,
         fontweight="bold",
@@ -501,7 +519,7 @@ def draw_dashboard(
         3.42,
         "OBSERVED SQUEEZING (post-loss)",
         ha="center",
-        transform=ax.transData + intrinsic_label_t,
+        transform=ax.transData + observed_label_t,
         fontsize=9,
         color=AXIS_COLOR,
         fontweight="bold",
@@ -569,7 +587,7 @@ def draw_wigner_panel(
     ax.set_xlim(-5.0, 5.0)
     ax.set_ylim(-5.0, 5.0)
     ax.set_aspect("equal")
-    ax.set_xlabel("x (position quadrature)", fontsize=9, color=TEXT_COLOR, labelpad=9)
+    ax.set_xlabel("x (position quadrature)", fontsize=9, color=TEXT_COLOR, labelpad=WIGNER_LABELPAD)
     ax.set_ylabel("p (momentum quadrature)", fontsize=9, color=TEXT_COLOR, labelpad=9)
     ax.xaxis.set_major_locator(ticker.MaxNLocator(5))
     ax.yaxis.set_major_locator(ticker.MaxNLocator(5))
@@ -588,12 +606,13 @@ def draw_wigner_panel(
 
 
 def optimize_gif(tmp_path: Path, output: Path, *, colors: int, fps: float) -> None:
+    gif_colors = max(128, min(160, colors))
     with Image.open(tmp_path) as im:
         frames = []
         for frame in range(im.n_frames):
             im.seek(frame)
             rgb = im.convert("RGB")
-            frames.append(rgb.quantize(colors=colors, dither=Image.Dither.NONE))
+            frames.append(rgb.quantize(colors=gif_colors, dither=Image.Dither.NONE))
 
         frames[0].save(
             output,
@@ -640,13 +659,7 @@ def run_animation(data: DemoData, config: RenderConfig) -> None:
     fig.set_size_inches(config.figure_width, config.figure_height)
     fig.patch.set_facecolor(BG_COLOR)
 
-    # Center the bottom calibration axis under both top panels.
-    cal_pos = ax_cal.get_position()
-    cal_width = cal_pos.width * 0.72
-    cal_x0 = 0.5 - cal_width / 2.0
-    ax_cal.set_position((cal_x0, cal_pos.y0, cal_width, cal_pos.height))
-
-    fig.subplots_adjust(top=0.95, bottom=0.05, left=0.055, right=0.985, hspace=0.18, wspace=0.05)
+    fig.subplots_adjust(top=0.95, bottom=0.08, left=0.055, right=0.985, hspace=0.18, wspace=0.05)
 
     fig.suptitle(
         "Real-time Calibration Simulation",

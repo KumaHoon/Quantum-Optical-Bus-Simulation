@@ -14,6 +14,14 @@ from typing import Iterable
 import numpy as np
 import matplotlib.pyplot as plt
 
+from quantum_optical_bus.viz_style_ieee import (
+    FIGURE_WIDTH_2COL_IN,
+    apply_ieee_style,
+    save_ieee,
+    ieee_figsize,
+    style_axis,
+)
+
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
@@ -110,31 +118,37 @@ def run_quantization_sweep(
 def _plot_latency_curve(results: list[SweepResult], output_path: Path) -> None:
     latencies = [float(item.key) for item in results]
     rms = [item.rms_residual_phase_error for item in results]
+    apply_ieee_style(base_font_size=10, tick_font_size=9)
 
-    plt.figure(figsize=(7.2, 4.2))
-    plt.plot(latencies, rms, marker="o", linewidth=2, label="RMS residual")
-    plt.xlabel("Feedback latency (bins)")
-    plt.ylabel("RMS residual phase error")
-    plt.title("Control Latency Sweep")
-    plt.grid(alpha=0.25)
-    plt.tight_layout()
-    plt.savefig(output_path.with_name("sweep_latency.png"), dpi=150)
-    plt.close()
+    fig, ax = plt.subplots(figsize=ieee_figsize(width_in=FIGURE_WIDTH_2COL_IN, aspect=0.56))
+    ax.plot(latencies, rms, marker="o", linewidth=2, label="RMS residual")
+    style_axis(
+        ax,
+        title="Control Latency Sweep",
+        xlabel="Latency (bins / steps)",
+        ylabel="RMS residual phase error (rad)",
+    )
+    fig.tight_layout()
+    save_ieee(fig, output_path.with_name("sweep_latency.png"), dpi=300)
+    plt.close(fig)
 
 
 def _plot_quantization_curve(results: list[SweepResult], output_path: Path) -> None:
     bits = [int(item.key) for item in results]
     rms = [item.rms_residual_phase_error for item in results]
+    apply_ieee_style(base_font_size=10, tick_font_size=9)
 
-    plt.figure(figsize=(7.2, 4.2))
-    plt.plot(bits, rms, marker="o", linewidth=2)
-    plt.xlabel("Quantizer bits")
-    plt.ylabel("RMS residual phase error")
-    plt.title("Quantization Sweep")
-    plt.grid(alpha=0.25)
-    plt.tight_layout()
-    plt.savefig(output_path.with_name("sweep_quantization.png"), dpi=150)
-    plt.close()
+    fig, ax = plt.subplots(figsize=ieee_figsize(width_in=FIGURE_WIDTH_2COL_IN, aspect=0.56))
+    ax.plot(bits, rms, marker="o", linewidth=2)
+    style_axis(
+        ax,
+        title="Quantization Sweep",
+        xlabel="Quantizer bits (unitless)",
+        ylabel="RMS residual phase error (rad)",
+    )
+    fig.tight_layout()
+    save_ieee(fig, output_path.with_name("sweep_quantization.png"), dpi=300)
+    plt.close(fig)
 
 
 def generate_control_sweeps(

@@ -1,4 +1,4 @@
-﻿"""Generate IEEE-style advanced dashboard PNG artifacts for three workflows."""
+"""Generate IEEE-style advanced dashboard PNG artifacts for three workflows."""
 
 from __future__ import annotations
 
@@ -8,9 +8,8 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-from scripts.viz_style_ieee import (
+from quantum_optical_bus.viz_style_ieee import (
     AXIS_COLOR,
-    FIGURE_WIDTH_2COL_IN,
     SERIES_BLUE,
     SERIES_ORANGE,
     SERIES_TEAL,
@@ -141,13 +140,13 @@ def scenario_topology() -> None:
     ax_x, ax_p, ax_nei = axes
 
     im0 = ax_x.imshow(result.corr_x, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
-    ax_x.set_title("Corr(X)")
+    ax_x.set_title("Corr(X) (unitless)")
     ax_x.set_xlabel("Time-bin index (unitless)")
     ax_x.set_ylabel("Time-bin index (unitless)")
     ax_x.figure.colorbar(im0, ax=ax_x, fraction=0.046, pad=0.04)
 
     im1 = ax_p.imshow(result.corr_p, cmap="RdBu_r", vmin=-1.0, vmax=1.0)
-    ax_p.set_title("Corr(P)")
+    ax_p.set_title("Corr(P) (unitless)")
     ax_p.set_xlabel("Time-bin index (unitless)")
     ax_p.set_ylabel("Time-bin index (unitless)")
     ax_p.figure.colorbar(im1, ax=ax_p, fraction=0.046, pad=0.04)
@@ -170,7 +169,7 @@ def scenario_topology() -> None:
     ax_nei.axhline(0.0, color=AXIS_COLOR, ls="--", lw=1.0)
     ax_nei.set_xlabel("Neighbor pair index (unitless)")
     ax_nei.set_ylabel("Covariance (SNU)")
-    ax_nei.set_title("Neighbor correlations")
+    ax_nei.set_title("Neighbor covariance (SNU)")
     ax_nei.legend(loc="best", fontsize=8)
 
     fig.suptitle("Advanced Tab 2 — Topology + BS couplings", fontsize=11, y=0.98)
@@ -256,7 +255,7 @@ def scenario_digital_twin() -> None:
         color=SERIES_ORANGE,
         label="RMS residual phase error",
     )
-    ax_ctrl_left.set_xlabel("Latency steps")
+    ax_ctrl_left.set_xlabel("Latency steps (unitless)")
     ax_ctrl_left.set_ylabel("RMS residual phase error (rad)", color=SERIES_ORANGE)
     ax_ctrl_left.tick_params(axis="y", colors=SERIES_ORANGE)
 
@@ -273,7 +272,9 @@ def scenario_digital_twin() -> None:
 
     lines_left, labels_left = ax_ctrl_left.get_legend_handles_labels()
     lines_right, labels_right = ax_ctrl_right.get_legend_handles_labels()
-    ax_ctrl_left.legend(lines_left + lines_right, labels_left + labels_right, loc="best", fontsize=8)
+    ax_ctrl_left.legend(
+        lines_left + lines_right, labels_left + labels_right, loc="best", fontsize=8
+    )
     ax_ctrl_left.grid(alpha=0.25)
 
     fig.suptitle("Advanced Tab 3 — Digital twin fit + latency control", fontsize=11, y=0.98)

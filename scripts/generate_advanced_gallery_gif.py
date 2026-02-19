@@ -1,4 +1,4 @@
-﻿"""Generate a crossfading advanced gallery GIF from dashboard snapshots."""
+"""Generate a crossfading advanced gallery GIF from dashboard snapshots."""
 
 from __future__ import annotations
 
@@ -85,7 +85,10 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
     if image.width > target_width:
         scale = target_width / image.width
         image = image.resize(
-            (target_width, max(1, int(image.height * scale)),),
+            (
+                target_width,
+                max(1, int(image.height * scale)),
+            ),
             Image.Resampling.LANCZOS,
         )
 
@@ -135,7 +138,9 @@ def make_equal_canvas(images: list[Image.Image], bg=(10, 18, 30, 255)) -> list[I
     return framed
 
 
-def build_frames(images: list[Image.Image], config: RenderConfig) -> tuple[list[Image.Image], list[int]]:
+def build_frames(
+    images: list[Image.Image], config: RenderConfig
+) -> tuple[list[Image.Image], list[int]]:
     hold_frames = max(1, int(round(config.hold_seconds * config.fps)))
     fade_frames = max(1, int(round(config.crossfade_seconds * config.fps)))
     frame_duration_ms = max(1, int(1000 / config.fps))

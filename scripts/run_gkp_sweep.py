@@ -13,6 +13,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.special import erfc
 
+from quantum_optical_bus.viz_style_ieee import (
+    FIGURE_WIDTH_2COL_IN,
+    apply_ieee_style,
+    ieee_figsize,
+    save_ieee,
+    style_axis,
+)
+
 
 SQRT_PI_HALF = math.sqrt(math.pi) / 2.0
 
@@ -59,28 +67,35 @@ def run_gkp_sweep(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    apply_ieee_style(base_font_size=10, tick_font_size=9)
+    fig, axes = plt.subplots(1, 2, figsize=ieee_figsize(width_in=FIGURE_WIDTH_2COL_IN, aspect=0.56))
 
     im = axes[0].pcolormesh(noise, squeezing, logical_error, shading="auto")
-    axes[0].set_title("Noise times squeezing to logical error proxy")
-    axes[0].set_xlabel("Shift-noise std")
-    axes[0].set_ylabel("Squeezing r")
+    axes[0].set_title("Noise and squeezing to logical error proxy")
+    axes[0].set_xlabel("Shift-noise std (unitless)")
+    axes[0].set_ylabel("Squeezing parameter r (unitless)")
     axes[0].set_aspect("auto")
     cb = plt.colorbar(im, ax=axes[0])
-    cb.set_label("Logical error proxy = P(|shift| > sqrt(pi)/2)")
+    cb.set_label("Logical error proxy = P(|shift| > sqrt(pi)/2) (unitless)")
 
     axes[1].plot(noise, baseline_noise, lw=1.8, label=f"r={squeezing[0]:.2f}")
     axes[1].plot(noise, strong_squeeze, lw=1.8, label=f"r={squeezing[-1]:.2f}")
-    axes[1].set_title("Slice: noise sweep")
-    axes[1].set_xlabel("Shift-noise std")
-    axes[1].set_ylabel("Logical error proxy")
+    style_axis(
+        axes[0],
+        title=axes[0].get_title(),
+        xlabel=axes[0].get_xlabel(),
+        ylabel=axes[0].get_ylabel(),
+    )
+    axes[1].set_title("Noise slice")
+    axes[1].set_xlabel("Shift-noise std (unitless)")
+    axes[1].set_ylabel("Logical error proxy (unitless)")
     axes[1].grid(alpha=0.25)
     axes[1].legend()
 
     fig.suptitle("GKP Toy: finite squeezing + shift noise proxy", fontsize=12)
     fig.tight_layout()
 
-    plt.savefig(output_path, dpi=150)
+    save_ieee(fig, output_path, dpi=300)
     plt.close(fig)
     return output_path
 

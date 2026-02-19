@@ -1,4 +1,4 @@
-﻿"""Generate a compact research-evidence GIF for advanced dashboard documentation."""
+"""Generate a compact research-evidence GIF for advanced dashboard documentation."""
 
 from __future__ import annotations
 
@@ -65,7 +65,9 @@ def parse_args() -> argparse.Namespace:
         default=20,
         help="Corner label font size (default: 20).",
     )
-    parser.add_argument("--gif-colors", type=int, default=144, help="Palette colors for GIF quantization.")
+    parser.add_argument(
+        "--gif-colors", type=int, default=144, help="Palette colors for GIF quantization."
+    )
     return parser.parse_args()
 
 

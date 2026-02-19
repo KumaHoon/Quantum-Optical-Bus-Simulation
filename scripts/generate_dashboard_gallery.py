@@ -1,4 +1,4 @@
-﻿"""Generate 2-column scenario dashboard PNG assets with consistent IEEE styling."""
+"""Generate 2-column scenario dashboard PNG assets with consistent IEEE styling."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from quantum_optical_bus.hardware import WaveguideConfig, run_hardware_simulatio
 from quantum_optical_bus.interface import calculate_squeezing  # noqa: E402
 from quantum_optical_bus.quantum import run_single_mode  # noqa: E402
 from quantum_optical_bus.units import db_to_eta  # noqa: E402
-from scripts.viz_style_ieee import (  # noqa: E402
+from quantum_optical_bus.viz_style_ieee import (  # noqa: E402
     AXIS_COLOR,
     BG_COLOR,
     FIGURE_WIDTH_2COL_IN,
@@ -80,8 +80,7 @@ def _draw_calibration_curve(
     title: str,
 ) -> tuple[float, float]:
     sq_powers = np.linspace(0.0, 500.0, 300)
-    sq_db = -10.0 * np.log10(np.exp(-2.0 * calculate_squeezing(sq_powers))
-    )
+    sq_db = -10.0 * np.log10(np.exp(-2.0 * calculate_squeezing(sq_powers)))
     r = calculate_squeezing(pump)
     observed = -10.0 * np.log10(np.exp(-2.0 * r)) if r > 0 else 0.0
 
@@ -213,8 +212,8 @@ def scenario_calibration() -> None:
     style_axis(
         ax_pn,
         title="Photon number distribution P(n)",
-        xlabel="Photon number n",
-        ylabel="Probability",
+        xlabel="Photon number n (unitless)",
+        ylabel="Probability (unitless)",
     )
     ax_pn.set_xticks(ns)
     ax_pn.grid(axis="y", alpha=0.25)
@@ -241,7 +240,7 @@ def scenario_calibration() -> None:
 
 def scenario_decoherence() -> None:
     apply_ieee_style()
-    fig = plt.figure(figsize=(FIGURE_WIDTH_2COL_IN, 4.7))
+    fig = plt.figure(figsize=ieee_figsize(width_in=FIGURE_WIDTH_2COL_IN, aspect=0.62))
     gs = gridspec.GridSpec(2, 2, figure=fig, hspace=0.35, wspace=0.35)
 
     pump = 200.0
@@ -316,7 +315,14 @@ def scenario_decoherence() -> None:
         fontweight="bold",
         color=SERIES_PURPLE,
     )
-    ax_txt.text(0, 0.85, f"Pump power: {pump:.1f} mW", transform=ax_txt.transAxes, fontsize=9, color=AXIS_COLOR)
+    ax_txt.text(
+        0,
+        0.85,
+        f"Pump power: {pump:.1f} mW",
+        transform=ax_txt.transAxes,
+        fontsize=9,
+        color=AXIS_COLOR,
+    )
     ax_txt.text(
         0,
         0.77,
