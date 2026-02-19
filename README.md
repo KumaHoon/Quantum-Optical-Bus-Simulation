@@ -1,117 +1,117 @@
-# Quantum Optical Bus - Calibration Dashboard
-
-[![CI](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml)
+# Quantum Optical Bus - Calibration Dashboard [![CI](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml)
 
 English | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [中文](docs/README.zh.md)
 
-A hybrid quantum-classical simulation demonstrating **“One Waveguide (Hardware), Infinite States (Software)”**.
+A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware), Infinite States (Software)"**.
 
-It includes a calibration dashboard that maps classical pump power to continuous-variable (CV) quantum states with an explicit proxy mapping:
-
-$r = \eta\sqrt{P}$
-
-where this mapping is a proxy used by the current dashboard implementation.[^sqrtP_proxy]
+It includes a calibration dashboard that maps classical pump power to continuous-variable (CV) quantum states with explicit mapping $r=\eta\sqrt{P}$, where this mapping is a proxy used by the current dashboard implementation.[^sqrtP_proxy]
 
 ---
 
 ## Live Demo
 
-The dashboard sweeps pump power from 0 to 200 mW (squeezed ellipse forms), then increases propagation loss from 0 to 2 dB (decoherence restores the circular vacuum shape).
+The dashboard sweeps pump power from 0 to 200 mW (squeezed ellipse forms), then increases propagation loss from 0 to 2 dB (decoherence restores the circular vacuum shape). **Loss does not change intrinsic $r$; it reduces observed squeezing.**
 
-**Loss does not change intrinsic *r*; it reduces observed squeezing.**
-
-<p align="center">
-  <img src="assets/calibration_demo.gif" width="900" alt="Calibration demo (power sweep then loss sweep)">
-</p>
+![Calibration demo (power sweep then loss sweep)](assets/calibration_demo.gif)
 
 > **Figure 1: Real-time Calibration Simulation.**  
-> Intrinsic squeezing (pre-loss) is constant for a fixed pump power, while observed squeezing (post-loss) decreases as propagation loss increases.
+> The GIF shows intrinsic squeezing (pre-loss), which is constant for a fixed pump power, and observed squeezing (post-loss), which decreases as propagation loss increases.
 
-This validates the mapping $r \propto \sqrt{P}$ and the decoherence effect of a pure-loss channel.
+This figure validates the mapping $r\propto\sqrt{P}$ and the decoherence effect of the pure-loss channel.
 
 ---
 
 ## Architecture
 
-### High-level flow (README view)
+Below is a “component view” of the codebase with clear boundaries (UI vs. library modules) and the main “hot path” (slider inputs → simulation → plots), aligned with common architecture diagram best practices (start with context/boundaries, then zoom into components). :contentReference[oaicite:0]{index=0}
 
 ```mermaid
 flowchart LR
-  User([Researcher / Operator]) -->|sliders & inputs| UI[Streamlit Dashboard<br/>calibration_app.py]
+  User([User])
 
-  subgraph Core["quantum_optical_bus (core modules)"]
-    I[interface.py<br/>P -> eta*sqrt(P)]
-    U[units.py<br/>loss(dB) <-> transmissivity T]
-    Q[quantum.py<br/>single-mode Gaussian circuit]
-    M[multimode.py<br/>multi-mode / time-bin]
-    T[tdm_topology.py<br/>TDM topology + BS couplings]
-    E[estimation.py<br/>fit eta & loss (digital twin)]
-    C[control.py<br/>drift + latency feedback]
-    H[hardware.py (optional)<br/>Meep / analytical mock]
+  subgraph UI["UI / App (Streamlit)"]
+    App["calibration_app.py<br/>orchestrator + rendering"]
   end
 
-  UI -->|pump power P| I
-  UI -->|loss (dB)| U
+  subgraph Lib["quantum_optical_bus (Python package)"]
+    Interface["interface.py<br/>P -> r mapping"]
+    Units["units.py<br/>loss dB <-> T, scaling"]
+    Quantum["quantum.py<br/>single-mode Gaussian ops"]
+    Multi["multimode.py<br/>independent multi-mode/time-bin"]
+    Topology["tdm_topology.py<br/>BS couplings by config"]
+    Est["estimation.py<br/>fit eta & loss"]
+    Ctrl["control.py<br/>phase drift + latency feedback"]
+    HW["hardware.py<br/>optional Meep / analytic mock"]
+  end
 
-  I -->|r| Q
-  U -->|T| Q
-  I -->|r| M
-  U -->|T| M
-  I -->|r| T
-  U -->|T| T
+  subgraph Ext["External deps (optional)"]
+    SF["Strawberry Fields<br/>(Gaussian backend)"]
+    Meep["Meep (optional)<br/>eigenmode estimate"]
+  end
 
-  Q -->|metrics, Wigner, cov| UI
-  M -->|per-mode metrics| UI
-  T -->|covariances & correlations| UI
+  User -->|sliders: P, loss, theta, topology| App
 
-  UI -->|measured curves| E -->|eta_hat, loss_hat| UI
-  UI -->|controller params| C -->|residuals| UI
+  App -->|mode view / params| HW
+  App -->|r=eta*sqrt(P)| Interface
+  App -->|loss in dB| Units
 
-  UI -->|device params| H -->|mode profile / neff / Aeff| UI
+  Interface --> Quantum
+  Units --> Quantum
+  Quantum -->|Wigner, cov, metrics| App
+
+  App --> Multi
+  App --> Topology
+  Multi -->|per-mode metrics| App
+  Topology -->|correlations| App
+
+  App --> Est
+  App --> Ctrl
+  Est -->|eta_hat, loss_hat| App
+  Ctrl -->|residual/error metrics| App
+
+  Quantum -.-> SF
+  Multi -.-> SF
+  Topology -.-> SF
+  HW -.-> Meep
 ```
 
-The dashboard application (`calibration_app.py`) is the orchestrator:
-it reads UI inputs, runs the computational modules, and renders Wigner functions,
-quadrature plots, and control/fitting diagnostics.
+The dashboard application (`src/quantum_optical_bus/calibration_app.py`) is the orchestrator: it reads UI inputs, runs the computational modules, and renders Wigner functions, quadrature plots, and control/fitting diagnostics.
 
 ### Responsibility table
 
 | Layer | File | Responsibility |
 |---|---|---|
-| Hardware | `hardware.py` | Runs Meep eigenmode attempt when installed and always falls back to analytical Gaussian mock; returns fundamental-mode profile, effective index, and mode area. |
-| Mapping | `interface.py` | Defines pump-power mapping used in dashboards: $r = \eta\sqrt{P}$. |
-| Units | `units.py` | Converts dB loss to transmissivity (`db_to_eta`) and rescales covariance to vacuum=0.5 convention (`sf_cov_to_vacuum05`). |
-| Quantum engine | `quantum.py` | `run_single_mode`: applies `Sgate`, optional `Rgate`, optional `LossChannel`, returns Wigner/covariance metrics (`mean_photon`, `var_x`, `var_p`, observed squeezing / anti-squeezing). |
-| Multimode extension | `multimode.py` | `run_multimode`: per-mode independent `Sgate` / `Rgate` / `LossChannel` pipeline with optional Wigner extraction. |
-| Topology extension | `tdm_topology.py` | `simulate_topology`: per-mode local gates plus ordered BS couplings from config, returns mode covariances and neighbor correlations. |
-| Calibration / digital twin | `estimation.py` | `fit_eta_and_loss`: nonlinear fit of `eta` and loss to measured variance/squeezing curves. |
-| Control loop | `control.py` | Simulates phase drift (`simulate_phase_drift`) and latency-limited feedback (`apply_feedback_with_latency`), outputs residual/error retention metrics. |
-| Orchestrator UI | `calibration_app.py` | Streamlit app that wires all modules, computes derived quantities, and presents phase 1-4 workflows (hardware view, calibration, single-mode, multi-mode, topology, and digital twin). |
+| Hardware | `src/quantum_optical_bus/hardware.py` | Runs Meep eigenmode attempt when installed and always falls back to analytical Gaussian mock; returns fundamental-mode profile, effective index, and mode area. |
+| Mapping | `src/quantum_optical_bus/interface.py` | Defines pump-power mapping used in dashboards: $r=\eta\sqrt{P}$. |
+| Units | `src/quantum_optical_bus/units.py` | Converts dB loss to transmissivity (`db_to_eta`) and rescales covariance to vacuum=0.5 convention (`sf_cov_to_vacuum05`). |
+| Quantum engine | `src/quantum_optical_bus/quantum.py` | `run_single_mode`: applies `Sgate`, optional `Rgate`, optional `LossChannel`, returns Wigner/covariance metrics (`mean_photon`, `var_x`, `var_p`, observed squeezing / anti-squeezing). |
+| Multimode extension | `src/quantum_optical_bus/multimode.py` | `run_multimode`: per-mode independent `Sgate` / `Rgate` / `LossChannel` pipeline with optional Wigner extraction. |
+| Topology extension | `src/quantum_optical_bus/tdm_topology.py` | `simulate_topology`: per-mode local gates plus ordered BS couplings from config, returns mode covariances and neighbor correlations. |
+| Calibration / digital twin | `src/quantum_optical_bus/estimation.py` | `fit_eta_and_loss`: nonlinear fit of `eta` and loss to measured variance/squeezing curves. |
+| Control loop | `src/quantum_optical_bus/control.py` | Simulates phase drift (`simulate_phase_drift`) and latency-limited feedback (`apply_feedback_with_latency`), outputs residual/error retention metrics. |
+| Orchestrator UI | `src/quantum_optical_bus/calibration_app.py` | Streamlit app that wires all modules, computes derived quantities, and presents phase workflows (hardware view, calibration, single-mode, multi-mode, topology, and digital twin). |
 
 ### Roadmap notes (source-based and current scope)
 
-- `hardware.py` includes a hardware simulation path but does not drive the live
-  calibration map $r$ in the current MVP.
-- `interface.py` keeps the squeezing coupling $\eta$ as a phenomenological parameter
-  rather than a value extracted from hardware overlap integrals.
-- `tdm_topology.py` uses a static sequence of configured couplings in MVP form
-  (no full timing jitter/hardware dispatch layer).
+- `hardware.py` includes a hardware simulation path but does not drive the live calibration map $r$ in the current MVP.
+- `interface.py` keeps the squeezing coupling $\eta$ as a phenomenological parameter rather than a value extracted from hardware overlap integrals.
+- `tdm_topology.py` uses a static sequence of configured couplings in MVP form (no full timing jitter/hardware dispatch layer).
 
-For more implementation details, assumptions, and module interaction notes, see
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+For more implementation details, assumptions, and module interaction notes, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
 
 ## Hardware-in-the-Loop Expansion
 
-<p align="center">
-<img src="docs/figures/hil_expansion.png" width="950" alt="Hardware-in-the-Loop expansion flow" />
-</p>
+![Hardware-in-the-Loop expansion flow](docs/figures/hil_expansion.png)
 
 > **Figure 2: Future Hardware-in-the-Loop expansion plan.**
 
 The roadmap adds a hardware-aware loop:
+
 - optical path (laser/OPA/loop/homodyne),
 - control path (ADC/FPGA/DAC/EOM driver),
-- world-model path (`estimation.py` -> updated controller coefficients -> `hdl` deployment).
+- world-model path (`estimation.py` → updated controller coefficients → `hdl` deployment).
 
 ---
 
@@ -125,11 +125,9 @@ The roadmap adds a hardware-aware loop:
 
 ### Scenario Gallery GIF
 
-> **Figure 3: Scenario gallery animation.**
+![Scenario gallery animation](assets/scenario_gallery.gif)
 
-<p align="center">
-<img src="assets/scenario_gallery.gif" width="950" alt="Scenario gallery animation" />
-</p>
+---
 
 ## Advanced Gallery
 
@@ -141,21 +139,15 @@ The roadmap adds a hardware-aware loop:
 
 ### Advanced Gallery GIF
 
-> **Figure 4: Advanced gallery animation.**
+![Advanced gallery animation](assets/advanced_gallery.gif)
 
-<p align="center">
-<img src="assets/advanced_gallery.gif" width="950" alt="Advanced gallery animation" />
-</p>
+---
 
 ## Evidence Gallery
 
 ### Advanced Evidence GIF
 
-> **Figure 5: Advanced evidence summary animation.**
-
-<p align="center">
-<img src="assets/advanced_evidence.gif" width="950" alt="Advanced evidence summary animation" />
-</p>
+![Advanced evidence summary animation](assets/advanced_evidence.gif)
 
 ---
 
@@ -184,7 +176,11 @@ Then open **http://localhost:8501**.
 
 ### Language Notes
 
-See translation versions in `docs/README.ja.md`, `docs/README.ko.md`, and `docs/README.zh.md`.
+See translation versions in:
+
+- `docs/README.ja.md`
+- `docs/README.ko.md`
+- `docs/README.zh.md`
 
 ### Additional Commands
 
@@ -197,7 +193,6 @@ See translation versions in `docs/README.ja.md`, `docs/README.ko.md`, and `docs/
 | Generate Advanced Evidence GIF | `python scripts/generate_advanced_evidence_gif.py` |
 | Generate HIL Infographic | `python scripts/generate_hil_infographic.py` |
 | Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
-| Check README style rules | `python scripts/readme_style_guard.py` |
 
 Topology config example:
 
@@ -210,9 +205,9 @@ python -c "from quantum_optical_bus.tdm_topology import simulate_topology; print
 This repository includes a minimal `Makefile`:
 
 ```bash
-make test   # run pytest
-make lint   # lightweight checks (python -m compileall src tests)
-make app    # launch Streamlit dashboard
+make test  # run pytest
+make lint  # lightweight checks (python -m compileall src tests)
+make app   # launch Streamlit dashboard
 ```
 
 If `make` is unavailable (common on Windows shells), run:
@@ -231,39 +226,41 @@ streamlit run src/quantum_optical_bus/calibration_app.py
 
 The squeezing parameter is mapped from pump power:
 
-$$r = \eta\sqrt{P}$$
-where this is a phenomenological control proxy, not yet a full hardware-derived parameter estimate.[^sqrtP_proxy]
+$$
+r=\eta\sqrt{P}
+$$
 
-where $\eta = 0.1$ is a placeholder coupling coefficient so that 100 mW approximates $r\approx 1.0$.
+This is a phenomenological control proxy, not yet a full hardware-derived parameter estimate.[^sqrtP_proxy]
+
+$\eta=0.1$ is a placeholder coupling coefficient so that 100 mW approximates $r\approx 1.0$.
+
 This is the source-side knob and is independent of downstream loss.
 
-For a single-mode squeezed vacuum state, quadrature variance scales with the squeezing
-parameter as $V_x \propto e^{-2r}$ and $V_p \propto e^{+2r}$ (up to convention),
-which we use here as a modeling convention for visualization and diagnostics.[^squeezing_vacuum]
+For a single-mode squeezed vacuum state, quadrature variance scales with the squeezing parameter as $V_x\propto e^{-2r}$ and $V_p\propto e^{+2r}$ (up to convention), which we use here as a modeling convention for visualization and diagnostics.[^squeezing_vacuum]
 
 ### Loss model
 
 Propagation and detection losses are modeled as a pure-loss channel applied after squeezing:
 
-$$T = 10^{-\mathrm{loss}_{\mathrm{dB}}/10}$$
-This is the inverse conversion used by our dashboard helper utilities; the forward
-relation for reporting power loss is ${\rm loss}_{\rm dB} = -10\log_{10}(T)$.[^db_conversion]
+$$
+T = 10^{-\frac{\mathrm{loss}_{\mathrm{dB}}}{10}}
+$$
 
-and the channel model is
+This avoids KaTeX/LaTeX underscore parsing issues (the code variable is `loss_dB`, while the math uses $\mathrm{loss}_{\mathrm{dB}}$). :contentReference[oaicite:1]{index=1}
 
-$$\hat{a}_{\mathrm{out}} = \sqrt{T}\,\hat{a}_{\mathrm{in}} + \sqrt{1-T}\,\hat{a}_{\mathrm{vac}}$$
+The forward relation for reporting power loss is:
 
-Observed squeezing is derived from output covariances and tends to zero as $T \to 0$.
+$$
+\mathrm{loss}_{\mathrm{dB}} = -10\log_{10}(T)
+$$
 
-[^sqrtP_proxy]: Proxy mapping for this repository's calibration demo:  
-    Squeezing lab manual for OPA characterization and power-law fitting guidance,
-    https://indico.fysik.su.se/event/9433/contributions/14609/attachments/6285/8488/Squeezing_Lab_Manual_WACQT_Lab%20%281%29.pdf
+and the channel model is:
 
-[^squeezing_vacuum]: Quadrature-variance scaling in squeezed vacuum (with common conventions),
-    https://mx.nthu.edu.tw/~rklee/files/QO-note-squeezed.pdf
+$$
+\hat{a}_{\text{out}}=\sqrt{T}\,\hat{a}_{\text{in}}+\sqrt{1-T}\,\hat{a}_{\text{vac}}
+$$
 
-[^db_conversion]: Standard power/attenuation conversion in dB used with the same laboratory notes:  
-    https://indico.fysik.su.se/event/9433/contributions/14609/attachments/6285/8488/Squeezing_Lab_Manual_WACQT_Lab%20%281%29.pdf
+Observed squeezing is derived from output covariances and tends to zero as $T\to 0$.
 
 ### Honest notes about placeholders
 
@@ -273,10 +270,15 @@ Observed squeezing is derived from output covariances and tends to zero as $T \t
 - `multimode.py` is per-bin independent by design in the current version.
 - `estimation.py` and `control.py` are MVP-level fitting + simplified drift/latency routines intended for study workflows.
 
+[^sqrtP_proxy]: Proxy mapping for this repository's calibration demo: Squeezing lab manual for OPA characterization and power-law fitting guidance, https://indico.fysik.su.se/event/9433/contributions/14609/attachments/6285/8488/Squeezing_Lab_Manual_WACQT_Lab%20%281%29.pdf
+[^squeezing_vacuum]: Quadrature-variance scaling in squeezed vacuum (with common conventions), https://mx.nthu.edu.tw/~rklee/files/QO-note-squeezed.pdf
+[^db_conversion]: Standard power/attenuation conversion in dB used with the same laboratory notes: https://indico.fysik.su.se/event/9433/contributions/14609/attachments/6285/8488/Squeezing_Lab_Manual_WACQT_Lab%20%281%29.pdf
+
+---
+
 ## Testing & CI
 
-Tests run on Ubuntu, Windows, and macOS via GitHub Actions.
-Tested on Python 3.10 due to Strawberry Fields support.
+Tests run on Ubuntu, Windows, and macOS via GitHub Actions. Tested on Python 3.10 due to Strawberry Fields support.
 
 ```bash
 pip install -e ".[test]"
@@ -289,30 +291,28 @@ Roadmap and phased acceptance criteria are documented in `docs/ROADMAP.md`.
 
 ## Project Structure
 
-```
+```text
 .
-+-- .github/workflows/ci.yml           # CI: Ubuntu / Windows / macOS
-+-- src/
-    +-- quantum_optical_bus/
-        +-- calibration_app.py         # Streamlit calibration dashboard
-        +-- quantum.py                 # Single-mode Gaussian circuit helper
-        +-- multimode.py               # Independent multi-mode/time-bin Gaussian core
-        +-- tdm_topology.py            # Config-driven topology + BS couplings
-        +-- estimation.py              # Digital twin fitting (eta/loss)
-        +-- control.py                 # Drift and latency control simulation
-        +-- hardware.py                # Meep / analytical mock interface
-        +-- interface.py               # Power->squeezing mapping
-        +-- units.py                   # Units helpers and loss conversion
-        +-- compat.py                  # Dependency patches
-+-- tests/
-    +-- test_core.py                   # Core simulator tests
-    +-- test_digital_twin.py           # Estimation/control tests
-+-- scripts/
-    +-- generate_calibration_demo.py   # Animated demo GIF
-    +-- generate_dashboard_gallery.py  # Baseline scenario images
-    +-- generate_advanced_dashboard_gallery.py # Multi-mode/topology/digital twin images
-    +-- ...                           # GIF and evidence generators
-+-- assets/                            # Generated images and demo artifacts
+├── .github/workflows/ci.yml                 # CI: Ubuntu / Windows / macOS
+├── src/
+│   └── quantum_optical_bus/
+│       ├── calibration_app.py               # Streamlit calibration dashboard
+│       ├── quantum.py                       # Single-mode Gaussian circuit helper
+│       ├── multimode.py                     # Independent multi-mode/time-bin Gaussian core
+│       ├── tdm_topology.py                  # Config-driven topology + BS couplings
+│       ├── estimation.py                    # Digital twin fitting (eta/loss)
+│       ├── control.py                       # Drift and latency control simulation
+│       ├── hardware.py                      # Meep / analytical mock interface
+│       ├── interface.py                     # Power->squeezing mapping
+│       ├── units.py                         # Units helpers and loss conversion
+│       └── compat.py                        # Dependency patches
+├── tests/
+│   ├── test_core.py                         # Core simulator tests
+│   └── test_digital_twin.py                 # Estimation/control tests
+├── scripts/
+│   ├── generate_calibration_demo.py         # Animated demo GIF
+│   ├── generate_dashboard_gallery.py        # Baseline scenario images
+│   ├── generate_advanced_dashboard_gallery.py
+│   └── ...                                  # GIF and evidence generators
+└── assets/                                  # Generated images and demo artifacts
 ```
-
-

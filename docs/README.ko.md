@@ -2,24 +2,20 @@
 
 [English](../README.md) | [日本語](README.ja.md) | 한국어 | [中文](README.zh.md)
 
-<i lang="en">One Waveguide (Hardware), Infinite States (Software)</i>를 기반으로 한 하이브리드 양자-고전 시뮬레이션입니다.  
-펌프 파워를 입력으로 하여 연속변수 양자 상태 압축 계수 $r=\eta\sqrt{P}$와 손실 후 관측 양을 매핑하고, 대시보드에서 보정/디지털 트윈 동작을 시각화합니다.
-
+One Waveguide (Hardware), Infinite States (Software)를 기반으로 한 하이브리드 양자-고전 시뮬레이션입니다.  
+펌프 파워를 입력으로 하여 연속변수 양자 상태 압축 계수 $r=\eta\sqrt{P}$와 손실 후 관측량을 매핑하고, 대시보드에서 보정/디지털 트윈 동작을 시각화합니다.
 
 ---
 
 ## 실시간 시연
 
-`calibration_demo.gif`는 0–200 mW 펌프 스윕(내재)과 0–2 dB 손실 스윕(관측)의 <i lang="en">Wigner</i> 윤곽 변화를 보여줍니다.
+`calibration_demo.gif`는 0–200 mW 펌프 스윕(내재)과 0–2 dB 손실 스윕(관측)의 Wigner 윤곽 변화를 보여줍니다.
 
-<p align="center">
-<img src="../assets/calibration_demo.gif" width="950" alt="Live demo animation" />
-</p>
+![Live demo animation](../assets/calibration_demo.gif)
 
-> **Figure 1: 실시간 캘리브레이션 데모.**
-> <i lang="en">Intrinsic Squeezing (pre-loss)</i>는 동일한 펌프에서는 거의 고정값이고,  
-> <i lang="en">Observed Squeezing (post-loss)</i>는 손실이 커질수록 감소합니다.
-
+> **Figure 1: 실시간 캘리브레이션 데모.**  
+> Intrinsic Squeezing (pre-loss)는 동일한 펌프에서는 거의 고정값이고,  
+> Observed Squeezing (post-loss)는 손실이 커질수록 감소합니다.
 
 ---
 
@@ -27,40 +23,55 @@
 
 ```mermaid
 flowchart LR
-  APP["calibration_app.py<br/>orchestrator"]
-  H["hardware.py<br/>Meep optional / analytical mock"]
-  I["interface.py<br/>P -> r mapping"]
-  U["units.py<br/>loss dB <-> eta conversion"]
-  Q["quantum.py<br/>single-mode <i lang="en">Sgate</i>/<i lang="en">Rgate</i>/<i lang="en">LossChannel</i>"]
-  M["multimode.py<br/>independent multi-mode/<i lang="en">time-bin</i> circuits"]
-  T["tdm_topology.py<br/>topology + BS couplings"]
-  E["estimation.py<br/>fit eta and loss"]
-  C["control.py<br/>phase drift and latency feedback"]
-  L["calibration_app.py<br/>UI render"]
+  User([User])
 
-  APP --> H
-  APP --> I
-  APP --> U
-  APP --> Q
-  APP --> M
-  APP --> T
-  APP --> E
-  APP --> C
-  H --> I
-  I --> Q
-  I --> M
-  I --> T
-  U --> Q
-  U --> M
-  U --> T
-  Q --> L
-  M --> L
-  T --> L
-  E --> L
-  C --> L
+  subgraph UI["UI / App (Streamlit)"]
+    App["calibration_app.py<br/>orchestrator + rendering"]
+  end
+
+  subgraph Lib["quantum_optical_bus (Python package)"]
+    Interface["interface.py<br/>P -> r mapping"]
+    Units["units.py<br/>loss dB <-> T, scaling"]
+    Quantum["quantum.py<br/>single-mode Gaussian ops"]
+    Multi["multimode.py<br/>independent multi-mode/time-bin"]
+    Topology["tdm_topology.py<br/>BS couplings by config"]
+    Est["estimation.py<br/>fit eta & loss"]
+    Ctrl["control.py<br/>phase drift + latency feedback"]
+    HW["hardware.py<br/>optional Meep / analytic mock"]
+  end
+
+  subgraph Ext["External deps (optional)"]
+    SF["Strawberry Fields<br/>(Gaussian backend)"]
+    Meep["Meep (optional)<br/>eigenmode estimate"]
+  end
+
+  User -->|sliders: P, loss, theta, topology| App
+
+  App -->|mode view / params| HW
+  App -->|r=eta*sqrt(P)| Interface
+  App -->|loss in dB| Units
+
+  Interface --> Quantum
+  Units --> Quantum
+  Quantum -->|Wigner, cov, metrics| App
+
+  App --> Multi
+  App --> Topology
+  Multi -->|per-mode metrics| App
+  Topology -->|correlations| App
+
+  App --> Est
+  App --> Ctrl
+  Est -->|eta_hat, loss_hat| App
+  Ctrl -->|residual/error metrics| App
+
+  Quantum -.-> SF
+  Multi -.-> SF
+  Topology -.-> SF
+  HW -.-> Meep
 ```
 
-`calibration_app.py`는 UI 입력을 받고 계산 모듈을 호출해 <i lang="en">Wigner</i> 시각화, 공분산 지표, 제어/적합 진단 결과를 갱신하는 오케스트레이터입니다.
+`calibration_app.py`는 UI 입력을 받고 계산 모듈을 호출해 Wigner 시각화, 공분산 지표, 제어/적합 진단 결과를 갱신하는 오케스트레이터입니다.
 
 ### 책임 표
 
@@ -68,9 +79,9 @@ flowchart LR
 |---|---|---|
 | 하드웨어 | `src/quantum_optical_bus/hardware.py` | Meep 사용 시 모드 추정, 미지원 시 분석형 mock으로 폴백 |
 | 매핑 | `src/quantum_optical_bus/interface.py` | 입력 펌프와 $r=\eta\sqrt{P}$ 대응 정의 |
-| 단위 | `src/quantum_optical_bus/units.py` | dB 손실→투과율 변환 및 <i lang="en">Wigner</i> / <i lang="en">covariance</i> 계산용 스케일 지원 |
-| 양자 엔진 | `src/quantum_optical_bus/quantum.py` | `run_single_mode`에서 <i lang="en">Sgate</i>/<i lang="en">Rgate</i>/<i lang="en">LossChannel</i>를 구성해 주요 메트릭 산출 |
-| 멀티모드 확장 | `src/quantum_optical_bus/multimode.py` | 모드별 독립 <i lang="en">time-bin</i> 가우시안 회로 처리 |
+| 단위 | `src/quantum_optical_bus/units.py` | dB 손실→투과율 변환 및 Wigner / covariance 계산용 스케일 지원 |
+| 양자 엔진 | `src/quantum_optical_bus/quantum.py` | `run_single_mode`에서 Sgate/Rgate/LossChannel를 구성해 주요 메트릭 산출 |
+| 멀티모드 확장 | `src/quantum_optical_bus/multimode.py` | 모드별 독립 time-bin 가우시안 회로 처리 |
 | 위상 토폴로지 | `src/quantum_optical_bus/tdm_topology.py` | 설정 기반 BS 결합 시퀀스 및 모드별 손실 적용 |
 | 추정 | `src/quantum_optical_bus/estimation.py` | `fit_eta_and_loss`로 η 및 손실 동시 추정 |
 | 제어 | `src/quantum_optical_bus/control.py` | 위상 드리프트 + 지연 포함 간단 제어 루프 |
@@ -84,20 +95,17 @@ flowchart LR
 
 상세 상호작용은 [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)에서 확인하세요.
 
-
 ---
 
 ## 하드웨어 인 더 루프 확장
 
-<p align="center">
-<img src="../docs/figures/hil_expansion.png" width="950" alt="Hardware-in-the-loop expansion flow" />
-</p>
+![Hardware-in-the-loop expansion flow](figures/hil_expansion.png)
 
 로드맵은 다음을 목표로 합니다.
+
 - 광학 경로 (laser/OPA/loop/homodyne)
 - 제어 경로 (ADC/FPGA/DAC/EOM driver)
 - 월드모델 경로 (`estimation.py` → 제어 계수 갱신 → `hdl` 배포)
-
 
 ---
 
@@ -109,14 +117,11 @@ flowchart LR
 | **2. Squeezed State (P = 200 mW)** | ![Calibration + Squeezing](../assets/dashboard_calibration.png) |
 | **3. Decoherence (Pure vs Lossy)** | ![Decoherence Comparison](../assets/dashboard_decoherence.png) |
 
-<details>
-<summary>시나리오 GIF</summary>
+### 시나리오 GIF
 
-<p align="center">
-<img src="../assets/scenario_gallery.gif" width="950" alt="Scenario gallery animation" />
-</p>
+![Scenario gallery animation](../assets/scenario_gallery.gif)
 
-</details>
+---
 
 ## 고급 갤러리
 
@@ -126,26 +131,17 @@ flowchart LR
 | **5. Topology Simulator** | ![Topology Dashboard](../assets/dashboard_topology.png) |
 | **6. Digital Twin + Control** | ![Digital Twin Dashboard](../assets/dashboard_digital_twin.png) |
 
-<details>
-<summary>고급 GIF</summary>
+### 고급 GIF
 
-<p align="center">
-<img src="../assets/advanced_gallery.gif" width="950" alt="Advanced gallery animation" />
-</p>
+![Advanced gallery animation](../assets/advanced_gallery.gif)
 
-</details>
+---
 
 ## Evidence 갤러리
 
-<details>
-<summary>Evidence GIF</summary>
+### Evidence GIF
 
-<p align="center">
-<img src="../assets/advanced_evidence.gif" width="950" alt="Advanced evidence animation" />
-</p>
-
-</details>
-
+![Advanced evidence animation](../assets/advanced_evidence.gif)
 
 ---
 
@@ -163,7 +159,7 @@ streamlit run src/quantum_optical_bus/calibration_app.py
 
 ### Docker 빠른 시작
 
-<i lang="en">Strawberry Fields</i> 및 Python 3.10 환경에서 동작을 확인했습니다.
+Strawberry Fields 및 Python 3.10 환경에서 동작을 확인했습니다.
 
 ```bash
 docker build .
@@ -199,7 +195,6 @@ python -m compileall src tests
 streamlit run src/quantum_optical_bus/calibration_app.py
 ```
 
-
 ---
 
 ## 모델 정의 및 가정
@@ -212,14 +207,15 @@ r = \eta\sqrt{P}
 
 ### 손실 모델
 
+(코드 변수는 `loss_dB`이지만, 수식에서는 $\mathrm{loss}_{\mathrm{dB}}$로 표기해 underscore 파싱 오류를 피합니다.)
+
 ```math
-T = 10^{-\mathrm{loss}_{\mathrm{dB}}/10}
+T = 10^{-\frac{\mathrm{loss}_{\mathrm{dB}}}{10}}
 ```
 
 ```math
-\hat{a}_{\mathrm{out}} = \sqrt{T}\,\hat{a}_{\mathrm{in}} + \sqrt{1-T}\,\hat{a}_{\mathrm{vac}}
+\hat{a}_{\text{out}} = \sqrt{T}\,\hat{a}_{\text{in}} + \sqrt{1-T}\,\hat{a}_{\text{vac}}
 ```
-
 
 ---
 
@@ -232,27 +228,26 @@ pip install -e ".[test]"
 python -m pytest -q
 ```
 
-
 ---
 
 ## 프로젝트 구조
 
-```
+```text
 .
-+-- .github/workflows/ci.yml           # CI: Ubuntu / Windows / macOS
-+-- src/
-    +-- quantum_optical_bus/
-        +-- calibration_app.py
-        +-- quantum.py
-        +-- multimode.py
-        +-- tdm_topology.py
-        +-- estimation.py
-        +-- control.py
-        +-- hardware.py
-        +-- interface.py
-        +-- units.py
-        +-- compat.py
-+-- tests/
-+-- scripts/
-+-- assets/
+├── .github/workflows/ci.yml
+├── src/
+│   └── quantum_optical_bus/
+│       ├── calibration_app.py
+│       ├── quantum.py
+│       ├── multimode.py
+│       ├── tdm_topology.py
+│       ├── estimation.py
+│       ├── control.py
+│       ├── hardware.py
+│       ├── interface.py
+│       ├── units.py
+│       └── compat.py
+├── tests/
+├── scripts/
+└── assets/
 ```
