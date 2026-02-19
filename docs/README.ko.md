@@ -5,6 +5,7 @@
 <i lang="en">One Waveguide (Hardware), Infinite States (Software)</i>를 기반으로 한 하이브리드 양자-고전 시뮬레이션입니다.  
 펌프 파워를 입력으로 하여 연속변수 양자 상태 압축 계수 $r=\eta\sqrt{P}$와 손실 후 관측 양을 매핑하고, 대시보드에서 보정/디지털 트윈 동작을 시각화합니다.
 
+
 ---
 
 ## 실시간 시연
@@ -18,6 +19,7 @@
 > **Figure 1: 실시간 캘리브레이션 데모.**
 > <i lang="en">Intrinsic Squeezing (pre-loss)</i>는 동일한 펌프에서는 거의 고정값이고,  
 > <i lang="en">Observed Squeezing (post-loss)</i>는 손실이 커질수록 감소합니다.
+
 
 ---
 
@@ -82,6 +84,7 @@ flowchart LR
 
 상세 상호작용은 [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)에서 확인하세요.
 
+
 ---
 
 ## 하드웨어 인 더 루프 확장
@@ -94,6 +97,7 @@ flowchart LR
 - 광학 경로 (laser/OPA/loop/homodyne)
 - 제어 경로 (ADC/FPGA/DAC/EOM driver)
 - 월드모델 경로 (`estimation.py` → 제어 계수 갱신 → `hdl` 배포)
+
 
 ---
 
@@ -141,6 +145,7 @@ flowchart LR
 </p>
 
 </details>
+
 
 ---
 
@@ -194,6 +199,7 @@ python -m compileall src tests
 streamlit run src/quantum_optical_bus/calibration_app.py
 ```
 
+
 ---
 
 ## 모델 정의 및 가정
@@ -207,12 +213,13 @@ r = \eta\sqrt{P}
 ### 손실 모델
 
 ```math
-T = 10^{-\text{loss\_dB}/10}
+T = 10^{-\mathrm{loss}_{\mathrm{dB}}/10}
 ```
 
 ```math
-\hat{a}_{\text{out}} = \sqrt{T}\,\hat{a}_{\text{in}} + \sqrt{1-T}\,\hat{a}_{\text{vac}}
+\hat{a}_{\mathrm{out}} = \sqrt{T}\,\hat{a}_{\mathrm{in}} + \sqrt{1-T}\,\hat{a}_{\mathrm{vac}}
 ```
+
 
 ---
 
@@ -224,6 +231,7 @@ GitHub Actions에서 Ubuntu/Windows/macOS가 기본으로 실행됩니다.
 pip install -e ".[test]"
 python -m pytest -q
 ```
+
 
 ---
 

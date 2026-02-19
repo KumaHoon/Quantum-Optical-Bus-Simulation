@@ -9,21 +9,21 @@ Scope:
 ## 1) README.md formatting issues (current state)
 
 - Encoding artifacts in section headings and text (mojibake) indicate non-UTF-8 rendering and broken formatting:
-  - `## ðŸ“ Model Definitions and Assumptions` (line 221).
-  - `## ðŸ§ª Testing & CI` (line 305).
-  - `## ðŸ“ Project Structure` (line 326).
-  - Multiple em dash/math-symbol substitutions appear as mojibake: `â€”`, `â†`, `Â·`, `â‰ˆ`, `â”œâ”€â”€`, etc. (examples around lines 17, 97–103, 109–111, 229–230, 255–259, 299–301, 329–347).
+  - `## Model Definitions and Assumptions` (line 221).
+  - `## Testing & CI` (line 305).
+  - `## Project Structure` (line 326).
+  - Multiple non-ASCII symbols appear as mojibake (examples around lines 17, 97, 103, 109-111, 229-230, 255-259, 299-301, 329-347).
 - Heading/title readability is effectively broken by those encoded glyphs, which also affects generated anchors and section discoverability.
 - Mixed-language / corrupted symbol blocks:
-  - The “Project Structure” box-drawing block appears garbled (lines 329–347) instead of plain ASCII/Unicode tree characters.
+  - The "Project Structure" box-drawing block appears garbled (lines 329-347) instead of plain ASCII/Unicode tree characters.
 - Minor line-flow consistency issues:
-  - Several long heading/annotation lines include mixed punctuation/Unicode that can render unevenly across viewers, notably in “Phase 1 Â· / Phase 2 Â· / Phase 3 Â· …” lines 97–107 and model-notes line 223 onward.
+  - Several long heading/annotation lines include mixed punctuation/Unicode that can render unevenly across viewers, notably in "Phase 1 / Phase 2 / Phase 3" lines 97-107 and model-notes line 223 onward.
 
 ## 2) Plot/layout label sources in generator scripts
 
 - `scripts/generate_calibration_demo.py`
   - Figure is built in `configure_axes()` and rendered by `run_animation()`:
-    - 2×2 grid with panel split (`height_ratios`, `width_ratios`).
+    - 2x2 grid with panel split (`height_ratios`, `width_ratios`).
     - Global style from `apply_ieee_style(base_font_size=10, tick_font_size=9, dpi=...)` (`run_animation`).
   - Dashboard panel labels and values:
     - `draw_dashboard()`: phase title, pump, loss bars, r, intrinsic/observed squeezing, transmissivity.
@@ -36,8 +36,8 @@ Scope:
 
 - `scripts/generate_dashboard_gallery.py`
   - Scenario renderers (`scenario_vacuum`, `scenario_calibration`, `scenario_decoherence`) set all axis text via:
-    - `_draw_calibration_curve()` → `style_axis(..., xlabel="Pump power (mW)", ylabel="Intrinsic squeezing (dB)")`
-    - `_style_wigner_panel()` → `xlabel="x (SNU)"`, `ylabel="p (SNU)"`
+    - `_draw_calibration_curve()` -> `style_axis(..., xlabel="Pump power (mW)", ylabel="Intrinsic squeezing (dB)")`
+    - `_style_wigner_panel()` -> `xlabel="x (SNU)", `ylabel="p (SNU)"`
     - `bar`/`text` labels in variance panel include `Variance (SNU; vacuum=0.5)`
   - Figure text and suptitles are set per scenario.
   - Output PNGs saved at `dpi=300` through `save_ieee(...)`:
@@ -89,8 +89,8 @@ Scope:
 ## 4) Recommended target specs for cleanup
 
 - Formatting/rendering
-  - Normalize `README.md` to UTF-8 without BOM and replace mojibake with proper Unicode characters.
-  - Regenerate section headings and symbols consistently (especially lines near 221, 305, 326 and all `â...` / `Â...` sequences).
+  - Normalize `README.md` to UTF-8 without BOM and replace mojibake with valid Unicode characters.
+  - Regenerate section headings and symbols consistently (especially lines near 221, 305, 326) and verify all symbols are cleanly encoded.
   - Recheck mermaid/tree blocks for valid UTF-8 rendering.
 - Plot layout / clipping
   - Centralize typography and axis styling in one place (single font family and sizes for titles/labels/ticks across all generators).

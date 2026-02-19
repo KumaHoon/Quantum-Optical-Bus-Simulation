@@ -5,6 +5,7 @@
 这是一个混合量子-经典模拟项目，核心口号是 **<i lang="en">One Waveguide (Hardware), Infinite States (Software)</i>**。  
 它通过从经典泵浦功率映射到连续变量(CV)压缩参数 $r=\eta\sqrt{P}$ 来展示“校准 + 可视化”流程，并在仿真中评估损耗与测量结果。
 
+
 ---
 
 ## 实时演示
@@ -18,6 +19,7 @@
 > **Figure 1: 实时校准演示。**
 > <i lang="en">Intrinsic Squeezing (pre-loss)</i> 由泵浦决定并较为稳定，  
 > <i lang="en">Observed Squeezing (post-loss)</i> 随损耗增加而降低。
+
 
 ---
 
@@ -82,6 +84,7 @@ flowchart LR
 
 更多模块交互说明见 [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)。
 
+
 ---
 
 ## 硬件在环扩展
@@ -94,6 +97,7 @@ flowchart LR
 - 光学路径（laser/OPA/loop/homodyne）
 - 控制路径（ADC/FPGA/DAC/EOM driver）
 - 世界模型路径（`estimation.py` -> 控制系数更新 -> `hdl` 部署）
+
 
 ---
 
@@ -141,6 +145,7 @@ flowchart LR
 </p>
 
 </details>
+
 
 ---
 
@@ -194,6 +199,7 @@ python -m compileall src tests
 streamlit run src/quantum_optical_bus/calibration_app.py
 ```
 
+
 ---
 
 ## 模型定义与假设
@@ -207,12 +213,13 @@ r = \eta\sqrt{P}
 ### 损耗模型
 
 ```math
-T = 10^{-\text{loss\_dB}/10}
+T = 10^{-\mathrm{loss}_{\mathrm{dB}}/10}
 ```
 
 ```math
-\hat{a}_{\text{out}} = \sqrt{T}\,\hat{a}_{\text{in}} + \sqrt{1-T}\,\hat{a}_{\text{vac}}
+\hat{a}_{\mathrm{out}} = \sqrt{T}\,\hat{a}_{\mathrm{in}} + \sqrt{1-T}\,\hat{a}_{\mathrm{vac}}
 ```
+
 
 ---
 
@@ -224,6 +231,7 @@ GitHub Actions 按 Ubuntu/Windows/macOS 执行回归测试。
 pip install -e ".[test]"
 python -m pytest -q
 ```
+
 
 ---
 

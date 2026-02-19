@@ -1,81 +1,73 @@
-﻿# Quantum Optical Bus - Calibration Dashboard
+# Quantum Optical Bus - Calibration Dashboard
 
 [![CI](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml)
 
 English | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [中文](docs/README.zh.md)
 
-A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware), Infinite States (Software)"**.
-It includes a calibration dashboard that maps classical pump power to continuous-variable (CV) quantum states with explicit mapping
-$r = \eta\sqrt{P}$, where this mapping is a proxy used by the current dashboard implementation.[^sqrtP_proxy]
+A hybrid quantum-classical simulation demonstrating **“One Waveguide (Hardware), Infinite States (Software)”**.
+
+It includes a calibration dashboard that maps classical pump power to continuous-variable (CV) quantum states with an explicit proxy mapping:
+
+$r = \eta\sqrt{P}$
+
+where this mapping is a proxy used by the current dashboard implementation.[^sqrtP_proxy]
 
 ---
 
 ## Live Demo
 
-The dashboard sweeps pump power from 0 to 200 mW (squeezed ellipse forms),
-then increases propagation loss from 0 to 2 dB (decoherence restores the circular
-vacuum shape). **Loss does not change intrinsic *r*; it reduces observed squeezing.**
+The dashboard sweeps pump power from 0 to 200 mW (squeezed ellipse forms), then increases propagation loss from 0 to 2 dB (decoherence restores the circular vacuum shape).
+
+**Loss does not change intrinsic *r*; it reduces observed squeezing.**
 
 <p align="center">
-<img src="assets/calibration_demo.gif" width="950" alt="Calibration demo (power sweep then loss sweep)" />
+  <img src="assets/calibration_demo.gif" width="900" alt="Calibration demo (power sweep then loss sweep)">
 </p>
 
-> **Figure 1: Real-time Calibration Simulation.**
-> The GIF shows intrinsic squeezing (pre-loss), which is constant for a fixed pump
-> power, and observed squeezing (post-loss), which decreases as propagation loss
-> increases.
+> **Figure 1: Real-time Calibration Simulation.**  
+> Intrinsic squeezing (pre-loss) is constant for a fixed pump power, while observed squeezing (post-loss) decreases as propagation loss increases.
 
-This figure validates the mapping $r \propto \sqrt{P}$ and the decoherence
-effect of the pure-loss channel.
+This validates the mapping $r \propto \sqrt{P}$ and the decoherence effect of a pure-loss channel.
 
 ---
 
 ## Architecture
 
+### High-level flow (README view)
+
 ```mermaid
 flowchart LR
-  subgraph UI["UI / Orchestration"]
-    APP["calibration_app.py<br/>Streamlit orchestrator"]
+  User([Researcher / Operator]) -->|sliders & inputs| UI[Streamlit Dashboard<br/>calibration_app.py]
+
+  subgraph Core["quantum_optical_bus (core modules)"]
+    I[interface.py<br/>P -> eta*sqrt(P)]
+    U[units.py<br/>loss(dB) <-> transmissivity T]
+    Q[quantum.py<br/>single-mode Gaussian circuit]
+    M[multimode.py<br/>multi-mode / time-bin]
+    T[tdm_topology.py<br/>TDM topology + BS couplings]
+    E[estimation.py<br/>fit eta & loss (digital twin)]
+    C[control.py<br/>drift + latency feedback]
+    H[hardware.py (optional)<br/>Meep / analytical mock]
   end
 
-  subgraph PREP["Preparation"]
-    H["hardware.py<br/>Meep optional / analytical mock"]
-    I["interface.py<br/>P -> η√P mapping"]
-    U["units.py<br/>loss dB ↔ transmissivity"]
-  end
+  UI -->|pump power P| I
+  UI -->|loss (dB)| U
 
-  subgraph CORE["Quantum simulators"]
-    Q["quantum.py<br/>Sgate / Rgate / LossChannel"]
-    M["multimode.py<br/>independent mode channels"]
-    T["tdm_topology.py<br/>BS topology couplings"]
-  end
+  I -->|r| Q
+  U -->|T| Q
+  I -->|r| M
+  U -->|T| M
+  I -->|r| T
+  U -->|T| T
 
-  subgraph TWIN["Digital twin"]
-    E["estimation.py<br/>fit η and loss"]
-    C["control.py<br/>phase drift + latency feedback"]
-  end
+  Q -->|metrics, Wigner, cov| UI
+  M -->|per-mode metrics| UI
+  T -->|covariances & correlations| UI
 
-  APP --> I
-  APP --> U
-  APP --> H
-  APP --> Q
-  APP --> M
-  APP --> T
-  APP --> E
-  APP --> C
+  UI -->|measured curves| E -->|eta_hat, loss_hat| UI
+  UI -->|controller params| C -->|residuals| UI
 
-  H -.optional.-> I
-  I --> Q
-  I --> M
-  I --> T
-  U --> Q
-  U --> M
-  U --> T
-  Q --> APP
-  M --> APP
-  T --> APP
-  E --> C
-  C --> APP
+  UI -->|device params| H -->|mode profile / neff / Aeff| UI
 ```
 
 The dashboard application (`calibration_app.py`) is the orchestrator:
@@ -205,6 +197,7 @@ See translation versions in `docs/README.ja.md`, `docs/README.ko.md`, and `docs/
 | Generate Advanced Evidence GIF | `python scripts/generate_advanced_evidence_gif.py` |
 | Generate HIL Infographic | `python scripts/generate_hil_infographic.py` |
 | Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
+| Check README style rules | `python scripts/readme_style_guard.py` |
 
 Topology config example:
 
@@ -252,13 +245,13 @@ which we use here as a modeling convention for visualization and diagnostics.[^s
 
 Propagation and detection losses are modeled as a pure-loss channel applied after squeezing:
 
-$$T = 10^{-\text{loss\_dB}/10}$$
+$$T = 10^{-\mathrm{loss}_{\mathrm{dB}}/10}$$
 This is the inverse conversion used by our dashboard helper utilities; the forward
 relation for reporting power loss is ${\rm loss}_{\rm dB} = -10\log_{10}(T)$.[^db_conversion]
 
 and the channel model is
 
-$$\hat{a}_{\text{out}} = \sqrt{T}\,\hat{a}_{\text{in}} + \sqrt{1-T}\,\hat{a}_{\text{vac}}$$
+$$\hat{a}_{\mathrm{out}} = \sqrt{T}\,\hat{a}_{\mathrm{in}} + \sqrt{1-T}\,\hat{a}_{\mathrm{vac}}$$
 
 Observed squeezing is derived from output covariances and tends to zero as $T \to 0$.
 

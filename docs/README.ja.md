@@ -4,6 +4,7 @@
 
 <i lang="en">One Waveguide (Hardware), Infinite States (Software)</i>を用いた、光量子計算とCV量子状態を結びつけるハイブリッドなシミュレーションです。ポンプ出力を固定した量子状態制御変数 $r=\eta\sqrt{P}$ と損失後観測値にマッピングし、キャリブレーションとデジタルツインを可視化します。
 
+
 ---
 
 ## ライブデモ
@@ -17,6 +18,7 @@
 > **Figure 1: リアルタイム校正シミュレーション。**
 > <i lang="en">Intrinsic Squeezing (pre-loss)</i> はポンプで決まり一定値になり、  
 > <i lang="en">Observed Squeezing (post-loss)</i> は損失で低下します。
+
 
 ---
 
@@ -81,6 +83,7 @@ flowchart LR
 
 本リポジトリのモジュール間仕様は [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) に詳細があります。
 
+
 ---
 
 ## ハードウェアインザループ拡張
@@ -93,6 +96,7 @@ flowchart LR
 - 光学経路（laser/OPA/loop/homodyne）
 - 制御経路（ADC/FPGA/DAC/EOM driver）
 - 世界モデル経路（`estimation.py` -> 制御係数更新 -> `hdl` 展開）
+
 
 ---
 
@@ -140,6 +144,7 @@ flowchart LR
 </p>
 
 </details>
+
 
 ---
 
@@ -193,6 +198,7 @@ python -m compileall src tests
 streamlit run src/quantum_optical_bus/calibration_app.py
 ```
 
+
 ---
 
 ## モデル定義と前提
@@ -206,12 +212,13 @@ r = \eta\sqrt{P}
 ### 損失モデル
 
 ```math
-T = 10^{-\text{loss\_dB}/10}
+T = 10^{-\mathrm{loss}_{\mathrm{dB}}/10}
 ```
 
 ```math
-\hat{a}_{\text{out}} = \sqrt{T}\,\hat{a}_{\text{in}} + \sqrt{1-T}\,\hat{a}_{\text{vac}}
+\hat{a}_{\mathrm{out}} = \sqrt{T}\,\hat{a}_{\mathrm{in}} + \sqrt{1-T}\,\hat{a}_{\mathrm{vac}}
 ```
+
 
 ---
 
@@ -223,6 +230,7 @@ GitHub Actions で Ubuntu / Windows / macOS の3環境を実行しています�
 pip install -e ".[test]"
 python -m pytest -q
 ```
+
 
 ---
 
