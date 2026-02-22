@@ -5,32 +5,20 @@ description = "Hybrid quantum-classical calibration dashboard for squeezed-light
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
-    "numpy",
-    "scipy",
-    "matplotlib",
-    "strawberryfields",
-    "streamlit",
+  "numpy",
+  "scipy",
+  "matplotlib",
+  "strawberryfields",
+  "streamlit",
 ]
 
 [project.optional-dependencies]
-# Meep requires conda or Linux
-full = [
-    "meep",
-]
-demo = [
-    "pillow",
-]
-yaml = [
-    "pyyaml",
-]
-dev = [
-    "ruff",
-    "pre-commit",
-]
-test = [
-    "pytest",
-    "ruff",
-]
+# Meep often requires conda or Linux packages.
+full = ["meep"]
+demo = ["pillow"]
+yaml = ["pyyaml"]
+dev = ["ruff", "pre-commit"]
+test = ["pytest", "ruff", "pyyaml"]
 
 [build-system]
 requires = ["setuptools"]
@@ -42,12 +30,7 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-exclude = [
-    ".git",
-    ".venv",
-    "__pycache__",
-    ".pytest_cache",
-]
+exclude = [".git", ".venv", "__pycache__", ".pytest_cache"]
 
 [tool.ruff.format]
 line-ending = "lf"

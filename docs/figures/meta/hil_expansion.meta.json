@@ -1,0 +1,46 @@
+{
+  "args": [
+    "--profile=web",
+    "--output-png=docs\\figures\\hil_expansion.png"
+  ],
+  "generator_script": "scripts/generate_hil_infographic.py",
+  "style": {
+    "title_font_size": 18,
+    "axis_label_font_size": 15,
+    "tick_font_size": 13,
+    "legend_font_size": 12,
+    "annotation_font_size": 12,
+    "line_width": 2.0,
+    "marker_size": 6.0
+  },
+  "created_at_utc": "2026-02-20T11:48:19Z",
+  "labels": {
+    "title": "HIL expansion diagram",
+    "xlabel": "Position [-]",
+    "ylabel": "Lane [-]"
+  },
+  "units": {},
+  "dpi": 150,
+  "git_commit": "7ce7c7f9baaf66eab5af33def8d273400389354a",
+  "python_version": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "profile": "web",
+  "canvas_px": [
+    1600,
+    1000
+  ],
+  "notes": [
+    "High-level Hil architecture expansion diagram for development planning."
+  ],
+  "generator_args": [
+    "--profile=web",
+    "--output-png=docs\\figures\\hil_expansion.png"
+  ],
+  "figure_id": "hil_expansion",
+  "seed": 11,
+  "extra": {
+    "args": [
+      "--profile=web",
+      "--output-png=docs\\figures\\hil_expansion.png"
+    ]
+  }
+}

@@ -2,7 +2,11 @@
 
 import numpy as np
 
-from quantum_optical_bus.control import apply_feedback_with_latency, simulate_phase_drift
+from quantum_optical_bus.control import (
+    apply_feedback_with_latency,
+    run_measurement_to_control_pipeline,
+    simulate_phase_drift,
+)
 from quantum_optical_bus.estimation import fit_eta_and_loss
 
 
@@ -99,3 +103,44 @@ class TestLatencyControl:
                 f"Measurement-noise trend violated at {noise_levels[idx]}->{noise_levels[idx + 1]}: "
                 f"{rms_errors[idx]} vs {rms_errors[idx + 1]}"
             )
+
+
+def test_measurement_to_control_pipeline_reuses_fitted_model() -> None:
+    rng = np.random.default_rng(123)
+    eta_true = 0.11
+    loss_true_db = 1.8
+    powers = np.linspace(5.0, 120.0, 45)
+    transmissivity = 10.0 ** (-loss_true_db / 10.0)
+    vac = 0.5
+    r = eta_true * np.sqrt(powers)
+    var_x = transmissivity * (vac * np.exp(-2.0 * r)) + (1.0 - transmissivity) * vac
+    var_p = transmissivity * (vac * np.exp(2.0 * r)) + (1.0 - transmissivity) * vac
+
+    data = {
+        "timestamp": np.arange(powers.size, dtype=float),
+        "pump_power_mw": powers,
+        "measured_var_x": var_x + rng.normal(0.0, 0.003, size=powers.size),
+        "measured_var_p": var_p + rng.normal(0.0, 0.008, size=powers.size),
+        "estimated_loss_db": np.full(powers.size, 1.0, dtype=float),
+    }
+
+    result = run_measurement_to_control_pipeline(
+        measurement_data=data,
+        model="variance",
+        latency_steps=3,
+        n_steps=120,
+        measurement_sigma=0.001,
+        estimator_bits=10,
+        seed=9,
+        step_sigma=0.012,
+        drift_rate=0.001,
+    )
+
+    assert result["fit_model"] == "variance"
+    assert result["control_steps"] == 120
+    control = result["control_result"]
+    assert control["latency_steps"] == 3
+    assert control["rms_residual_phase_error"] >= 0.0
+    assert result["loss_db_hat"] > 0.0
+    assert result["eta_hat"] > 0.0
+    assert isinstance(result["fit_diagnostics"], dict)

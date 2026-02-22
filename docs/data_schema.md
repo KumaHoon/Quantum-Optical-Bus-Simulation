@@ -1,6 +1,10 @@
 # Data Schema (Digital Twin Calibration)
 
 This project supports CSV-based calibration data for fitting simulator parameters.
+A recommended experiment folder is `data/raw/`:
+
+Example file:
+`data/raw/calibration_sample.csv`
 
 ## Required columns
 - `timestamp`
@@ -27,6 +31,8 @@ And at least one measurement set:
 - Current estimator (`fit_eta_and_loss`) assumes global constants for:
   - `eta` in `r = eta * sqrt(P)`
   - `loss_db` for transmissivity conversion `T = 10^(-loss_db/10)`
+- This schema is used by README onboarding flow:
+  - `python scripts/onboard_from_raw.py --data-path data/raw --profile both --target advisor --verify`
 
 ## Minimal CSV example
 ```csv
@@ -34,4 +40,9 @@ timestamp,pump_power_mw,measured_var_x,measured_var_p,estimated_loss_db,phase_es
 0,10,0.470,0.531,1.0,0.01
 1,25,0.426,0.588,1.0,0.03
 2,50,0.364,0.693,1.0,0.05
+```
+
+You can run:
+```bash
+python -c "from quantum_optical_bus.estimation import fit_eta_and_loss; print(fit_eta_and_loss('data/raw/calibration_sample.csv'))"
 ```

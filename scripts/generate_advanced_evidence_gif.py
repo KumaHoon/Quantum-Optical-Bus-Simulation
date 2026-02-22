@@ -8,17 +8,32 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+try:
+    from figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
+except ModuleNotFoundError:
+    from scripts.figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 ASSETS_DIR = ROOT_DIR / "assets"
 DEFAULT_OUTPUT = ASSETS_DIR / "advanced_evidence.gif"
+try:
+    from asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+except ModuleNotFoundError:
+    from scripts.asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
 
 EVIDENCE_IMAGES = (
-    ("1", ASSETS_DIR / "sweep_latency.png"),
-    ("2", ASSETS_DIR / "sweep_quantization.png"),
-    ("3", ASSETS_DIR / "gkp_proxy.png"),
-    ("4", ASSETS_DIR / "drift_recovery.png"),
+    ("Evidence 1: Calibration latency", "sweep_latency.png"),
+    ("Evidence 2: Quantization", "sweep_quantization.png"),
+    ("Evidence 3: GKP proxy", "gkp_proxy.png"),
+    ("Evidence 4: 24 h drift", "drift_recovery.png"),
 )
+
+
+def _resolve_evidence_path(base_dir: Path, filename: str) -> Path:
+    for candidate in candidate_output_paths(base_dir, filename):
+        if candidate.exists():
+            return candidate
+    return base_dir / filename
 
 
 @dataclass(frozen=True)
@@ -39,6 +54,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_OUTPUT,
         help="Output GIF path (default: assets/advanced_evidence.gif).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=ASSETS_DIR,
+        help="Directory where source PNGs and target GIF are stored.",
     )
     parser.add_argument("--fps", type=float, default=9.0, help="Output frame rate.")
     parser.add_argument(
@@ -68,41 +89,34 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--gif-colors", type=int, default=144, help="Palette colors for GIF quantization."
     )
+    parser.add_argument(
+        "--profile",
+        default="web",
+        choices=PROFILE_OPTIONS,
+        help="Render profile: web, paper, or both.",
+    )
     return parser.parse_args()
 
 
-def ensure_evidence_images() -> None:
-    missing = [str(path) for _, path in EVIDENCE_IMAGES if not path.exists()]
+def _evidence_paths(base_dir: Path) -> list[tuple[str, Path]]:
+    return [(label, _resolve_evidence_path(base_dir, name)) for label, name in EVIDENCE_IMAGES]
+
+
+def ensure_evidence_images(base_dir: Path) -> None:
+    missing = [
+        name
+        for name in [name for _, name in EVIDENCE_IMAGES]
+        if not (
+            any(candidate.exists() for candidate in candidate_output_paths(base_dir, name))
+        )
+    ]
     if not missing:
         return
-
     print("Missing evidence PNGs required for advanced evidence GIF:")
-    for path in missing:
-        print(f"  - {path}")
+    for name in missing:
+        print(f"  - {name}")
     print("Please generate or restore these assets before re-running.")
     sys.exit(1)
-
-
-def _label_slide(canvas: Image.Image, text: str, label_size: int) -> None:
-    draw = ImageDraw.Draw(canvas)
-    try:
-        font = ImageFont.truetype("DejaVuSans.ttf", size=label_size)
-    except OSError:
-        font = ImageFont.load_default()
-
-    text_bbox = draw.textbbox((0, 0), text, font=font)
-    w = text_bbox[2] - text_bbox[0]
-    h = text_bbox[3] - text_bbox[1]
-    x = 12
-    y = canvas.height - h - 12
-    draw.rounded_rectangle(
-        (x - 5, y - 4, x + w + 9, y + h + 4),
-        radius=max(6, label_size // 4),
-        fill=(0, 0, 0, 170),
-        outline=(255, 255, 255, 130),
-        width=1,
-    )
-    draw.text((x, y), text, fill=(255, 255, 255, 235), font=font)
 
 
 def _load_and_fit(path: Path, max_w: int, max_h: int) -> Image.Image:
@@ -169,34 +183,31 @@ def _compose_single_slide(
     draw = ImageDraw.Draw(canvas)
     title_bbox = draw.textbbox((0, 0), title, font=font)
     tw = title_bbox[2] - title_bbox[0]
-    draw.rectangle((12, 6, 16 + tw, 32), fill=(13, 17, 23))
-    draw.text((14, 8), title, fill=(200, 209, 217), font=font)
+    draw.rectangle((14, 6, 18 + tw, 32), fill=(13, 17, 23))
+    draw.text((16, 8), title, fill=(200, 209, 217), font=font)
     return canvas
 
 
-def build_slides(config: RenderConfig) -> list[Image.Image]:
-    left, right, gkp, drift = [path for _, path in EVIDENCE_IMAGES]
+def build_slides(config: RenderConfig, evidence_paths: list[tuple[str, Path]]) -> list[Image.Image]:
+    left, right, gkp, drift = [path for _, path in evidence_paths]
     slides: list[Image.Image] = []
     slide1 = _compose_sweep_slide(
         left_path=left,
         right_path=right,
         target_w=config.max_width,
     )
-    _label_slide(slide1, "Evidence 1", config.label_size)
     slide2 = _compose_single_slide(
         path=gkp,
         target_w=config.max_width,
         target_h=410,
-        title="Fault tolerance / GKP proxy",
+        title="GKP proxy (toy)",
     )
-    _label_slide(slide2, "Evidence 2", config.label_size)
     slide3 = _compose_single_slide(
         path=drift,
         target_w=config.max_width,
         target_h=500,
         title="Stability / 24h drift automation",
     )
-    _label_slide(slide3, "Evidence 3", config.label_size)
     slides.extend([slide1, slide2, slide3])
     return slides
 
@@ -220,6 +231,7 @@ def build_frames(
                 alpha = step / (fade_frames + 1)
                 frames.append(Image.blend(image, nxt, alpha))
                 durations.append(frame_duration_ms)
+    assert len(frames) > 2, "Generated GIF must contain more than one frame."
     return frames, durations
 
 
@@ -227,10 +239,10 @@ def optimize_and_save(
     frames: list[Image.Image],
     durations: list[int],
     config: RenderConfig,
+    profile: str,
 ) -> None:
     if not frames:
         raise RuntimeError("No frames generated for advanced evidence GIF.")
-
     quantized = [
         frame.convert("RGB").quantize(
             colors=config.colors,
@@ -239,23 +251,46 @@ def optimize_and_save(
         )
         for frame in frames
     ]
-    config.output.parent.mkdir(parents=True, exist_ok=True)
-    quantized[0].save(
-        config.output,
-        save_all=True,
-        append_images=quantized[1:],
-        duration=durations,
-        loop=0,
-        optimize=True,
-        disposal=2,
-        include_color_table=True,
-    )
-    print(f"[OK] Saved GIF: {config.output} ({config.output.stat().st_size} bytes)")
+    for out in resolve_outputs(config.output, profile):
+        out.parent.mkdir(parents=True, exist_ok=True)
+        quantized[0].save(
+            out,
+            save_all=True,
+            append_images=quantized[1:],
+            duration=durations,
+            loop=0,
+            optimize=True,
+            disposal=2,
+            include_color_table=True,
+        )
+        print(f"[OK] Saved GIF: {out} ({out.stat().st_size} bytes)")
+        target_profile = out.parent.name
+        with Image.open(out) as frame:
+            canvas_px = frame.size
+        write_figure_meta(
+            out,
+            figure_id=out.stem,
+            profile=target_profile,
+            generator_script="scripts/generate_advanced_evidence_gif.py",
+            generator_args=(f"--output={config.output}", f"--profile={target_profile}"),
+            labels={
+                "title": "Advanced evidence summary",
+                "xlabel": "frame index",
+                "ylabel": "N/A",
+            },
+            units={"x": "count", "time": "frame"},
+            notes="Compact GIF showing sweep evidence and roadmap artifacts.",
+            seed=11,
+            dpi=canonical_dpi(target_profile),
+            canvas_px=canvas_px if isinstance(canvas_px, tuple) else canonical_canvas_px(target_profile),
+        )
 
 
 def main() -> None:
     args = parse_args()
-    ensure_evidence_images()
+    if args.output.parent == Path("."):
+        args.output = args.output_dir / args.output.name
+    ensure_evidence_images(args.output_dir)
 
     config = RenderConfig(
         fps=args.fps,
@@ -267,7 +302,8 @@ def main() -> None:
         output=args.output,
     )
 
-    slides = build_slides(config)
+    evidence_paths = _evidence_paths(args.output_dir)
+    slides = build_slides(config, evidence_paths)
     target_w = max(slide.width for slide in slides)
     target_h = max(slide.height for slide in slides)
     for idx, slide in enumerate(slides):
@@ -279,7 +315,8 @@ def main() -> None:
             slides[idx] = canvas
 
     frames, durations = build_frames(slides, config)
-    optimize_and_save(frames, durations, config)
+    for profile in normalize_profiles(args.profile):
+        optimize_and_save(frames, durations, config, profile)
 
 
 if __name__ == "__main__":

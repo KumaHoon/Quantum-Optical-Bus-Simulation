@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from quantum_optical_bus.control import apply_feedback_with_latency, simulate_phase_drift
+from quantum_optical_bus.control import run_measurement_to_control_pipeline
 from quantum_optical_bus.estimation import fit_eta_and_loss
 from quantum_optical_bus.units import db_to_eta
 
@@ -32,19 +32,22 @@ def main() -> None:
     }
 
     eta_hat, loss_hat, diag = fit_eta_and_loss(noisy_data, model="variance")
-
-    # Drift + latency control run.
-    phase = simulate_phase_drift(T=400, step_sigma=0.015, drift_rate=0.002, seed=11)
     latency_levels = [0, 2, 6]
-    control_results = [
-        apply_feedback_with_latency(
-            latency_steps=lat,
-            true_phase=phase,
-            measurement_sigma=0.002,
-            seed=17,
+
+    control_results = []
+    for lat in latency_levels:
+        control_results.append(
+            run_measurement_to_control_pipeline(
+                measurement_data=noisy_data,
+                model="variance",
+                latency_steps=lat,
+                n_steps=400,
+                measurement_sigma=0.002,
+                step_sigma=0.015,
+                drift_rate=0.002,
+                seed=11,
+            )["control_result"]
         )
-        for lat in latency_levels
-    ]
 
     print("=== Digital Twin Demo Report ===")
     print(f"Ground truth: eta={eta_true:.4f}, loss_db={loss_true_db:.4f}")

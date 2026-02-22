@@ -3,24 +3,40 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 from dataclasses import dataclass
 import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
+try:
+    from figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
+except ModuleNotFoundError:
+    from scripts.figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 ASSETS_DIR = ROOT_DIR / "assets"
 DASHBOARD_SCRIPT = ROOT_DIR / "scripts" / "generate_dashboard_gallery.py"
 DEFAULT_OUTPUT = ASSETS_DIR / "scenario_gallery.gif"
+try:
+    from asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+except ModuleNotFoundError:
+    from scripts.asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
 
 
 SCENARIO_IMAGES = (
-    ("Scenario 1", ASSETS_DIR / "dashboard_vacuum.png"),
-    ("Scenario 2", ASSETS_DIR / "dashboard_calibration.png"),
-    ("Scenario 3", ASSETS_DIR / "dashboard_decoherence.png"),
+    ("Scenario 1: Vacuum baseline", "dashboard_vacuum.png"),
+    ("Scenario 2: Squeezed state", "dashboard_calibration.png"),
+    ("Scenario 3: Decoherence", "dashboard_decoherence.png"),
 )
+
+
+def _source_image(base_dir: Path, filename: str) -> Path:
+    for candidate in candidate_output_paths(base_dir, filename):
+        if candidate.exists():
+            return candidate
+    return base_dir / filename
 
 
 @dataclass(frozen=True)
@@ -42,6 +58,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_OUTPUT,
         help="Output GIF path (default: assets/scenario_gallery.gif).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=ASSETS_DIR,
+        help="Directory where source PNGs and target GIF are stored.",
     )
     parser.add_argument("--fps", type=float, default=9.0, help="GIF frame rate.")
     parser.add_argument(
@@ -74,18 +96,46 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also save MP4 output when ffmpeg is available.",
     )
+    parser.add_argument(
+        "--profile",
+        default="web",
+        choices=PROFILE_OPTIONS,
+        help="Render profile: web, paper, or both.",
+    )
     return parser.parse_args()
 
 
-def ensure_images_exist() -> None:
-    missing = [str(p) for _, p in SCENARIO_IMAGES if not p.exists()]
+def _scenario_paths(base_dir: Path) -> list[tuple[str, Path]]:
+    return [(label, _source_image(base_dir, name)) for label, name in SCENARIO_IMAGES]
+
+
+def ensure_images_exist(base_dir: Path, profile: str) -> None:
+    missing = [
+        name
+        for name in [name for _, name in SCENARIO_IMAGES]
+        if not (
+            any(candidate.exists() for candidate in candidate_output_paths(base_dir, name))
+        )
+    ]
     if not missing:
         return
+
+    regen_profile = "both" if profile in {"paper", "both"} else profile
     print("Missing scenario PNGs detected, regenerating dashboard gallery images...")
-    subprocess.run([sys.executable, str(DASHBOARD_SCRIPT)], check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            str(DASHBOARD_SCRIPT),
+            "--output-dir",
+            str(base_dir),
+            "--profile",
+            regen_profile,
+        ],
+        check=True,
+    )
 
 
-def load_labeled_image(path: Path, label: str, target_width: int, label_size: int) -> Image.Image:
+def load_labeled_image(path: Path, target_width: int) -> Image.Image:
     image = Image.open(path).convert("RGBA")
     if image.width > target_width:
         scale = target_width / image.width
@@ -96,33 +146,6 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
             ),
             Image.Resampling.LANCZOS,
         )
-
-    try:
-        label_font = ImageFont.truetype("DejaVuSans.ttf", size=label_size)
-    except OSError:
-        label_font = ImageFont.load_default()
-
-    draw = ImageDraw.Draw(image)
-    text = label
-    text_bbox = draw.textbbox((0, 0), text, font=label_font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
-    pad = max(8, label_size // 3)
-    x = 12
-    y = image.height - text_height - (pad * 2) - 4
-
-    bg_left = x - 6
-    bg_top = y - 4
-    bg_right = x + text_width + 12
-    bg_bottom = y + text_height + 8
-    draw.rounded_rectangle(
-        (bg_left, bg_top, bg_right, bg_bottom),
-        radius=max(6, label_size // 4),
-        fill=(0, 0, 0, 175),
-        outline=(255, 255, 255, 120),
-        width=1,
-    )
-    draw.text((x, y), text, fill=(255, 255, 255, 235), font=label_font)
     return image
 
 
@@ -156,7 +179,6 @@ def build_frames(
         for _ in range(hold_frames):
             frames.append(image)
             durations.append(frame_duration_ms)
-
         if i + 1 >= len(images):
             continue
         nxt = images[i + 1]
@@ -165,6 +187,7 @@ def build_frames(
             frames.append(Image.blend(image, nxt, alpha))
             durations.append(frame_duration_ms)
 
+    assert len(frames) > 2, "Generated GIF must contain more than one frame."
     return frames, durations
 
 
@@ -172,6 +195,7 @@ def optimize_and_save(
     frames: list[Image.Image],
     durations: list[int],
     config: RenderConfig,
+    profile: str,
 ) -> None:
     if not frames:
         raise RuntimeError("No frames generated.")
@@ -185,25 +209,43 @@ def optimize_and_save(
         )
         for frame in frames
     ]
-
-    quantized[0].save(
-        config.output,
-        save_all=True,
-        append_images=quantized[1:],
-        duration=durations,
-        loop=0,
-        optimize=True,
-        disposal=2,
-        include_color_table=True,
-    )
-    print(f"[OK] Saved GIF: {config.output} ({config.output.stat().st_size} bytes)")
-    if config.save_mp4:
-        save_mp4_if_available(config.output)
+    for target in resolve_outputs(config.output, profile):
+        quantized[0].save(
+            target,
+            save_all=True,
+            append_images=quantized[1:],
+            duration=durations,
+            loop=0,
+            optimize=True,
+            disposal=2,
+            include_color_table=True,
+        )
+        print(f"[OK] Saved GIF: {target} ({target.stat().st_size} bytes)")
+        target_profile = target.parent.name
+        with Image.open(target) as frame:
+            canvas_px = frame.size
+        write_figure_meta(
+            target,
+            figure_id=target.stem,
+            profile=target_profile,
+            generator_script="scripts/generate_scenario_gallery_gif.py",
+            generator_args=(f"--output={config.output}", f"--profile={target_profile}"),
+            labels={
+                "title": "Scenario gallery",
+                "xlabel": "frame index",
+                "ylabel": "N/A",
+            },
+            units={"x": "count", "time": "frame"},
+            notes="Cross-fade GIF of vacuum/calibration/decoherence dashboard snapshots.",
+            seed=11,
+            dpi=canonical_dpi(target_profile),
+            canvas_px=canvas_px if isinstance(canvas_px, tuple) else canonical_canvas_px(target_profile),
+        )
+        if config.save_mp4:
+            save_mp4_if_available(target)
 
 
 def save_mp4_if_available(gif_path: Path) -> None:
-    import shutil
-
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         print("[INFO] ffmpeg not available; skipping MP4 generation.")
@@ -231,11 +273,14 @@ def save_mp4_if_available(gif_path: Path) -> None:
 
 def main() -> None:
     args = parse_args()
-    ensure_images_exist()
+    if args.output.parent == Path("."):
+        args.output = args.output_dir / args.output.name
+    ensure_images_exist(args.output_dir, args.profile)
 
+    scenario_images = _scenario_paths(args.output_dir)
     raw_images = [
-        load_labeled_image(path, label, args.max_width, args.label_size)
-        for label, path in SCENARIO_IMAGES
+        load_labeled_image(path, args.max_width)
+        for _, path in scenario_images
     ]
     framed = make_equal_canvas(raw_images)
     config = RenderConfig(
@@ -248,8 +293,10 @@ def main() -> None:
         output=args.output,
         save_mp4=args.save_mp4,
     )
+    profiles = normalize_profiles(args.profile)
     frames, durations = build_frames(framed, config)
-    optimize_and_save(frames, durations, config)
+    for profile in profiles:
+        optimize_and_save(frames, durations, config, profile)
 
 
 if __name__ == "__main__":

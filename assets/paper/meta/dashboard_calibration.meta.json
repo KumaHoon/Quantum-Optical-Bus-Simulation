@@ -1,0 +1,50 @@
+{
+  "dpi": 300,
+  "canvas_px": [
+    2100,
+    1350
+  ],
+  "python_version": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "generator_script": "scripts/generate_dashboard_gallery.py",
+  "generator_args": [
+    "--output-dir=assets",
+    "--profile=paper"
+  ],
+  "units": {
+    "Pump power [mW]": "Pump power [mW]",
+    "Squeezing X [dB]": "Squeezing X [dB]",
+    "Probability P(n) [-]": "Probability P(n) [-]"
+  },
+  "style": {
+    "title_font_size": 11,
+    "axis_label_font_size": 9,
+    "tick_font_size": 8,
+    "legend_font_size": 8,
+    "annotation_font_size": 8,
+    "line_width": 1.5,
+    "marker_size": 4.0
+  },
+  "profile": "paper",
+  "created_at_utc": "2026-02-22T06:35:58Z",
+  "git_commit": "7ce7c7f9baaf66eab5af33def8d273400389354a",
+  "args": [
+    "--output-dir=assets",
+    "--profile=paper"
+  ],
+  "figure_id": "dashboard_calibration",
+  "labels": {
+    "title": "Dashboard squeezed-state calibration",
+    "xlabel": "Pump power [mW]",
+    "ylabel": "Squeezing X [dB]"
+  },
+  "notes": [
+    "Squeezed-state calibration scenario using an intrinsic operating point and photon-number diagnostics."
+  ],
+  "seed": 11,
+  "extra": {
+    "args": [
+      "--output-dir=assets",
+      "--profile=paper"
+    ]
+  }
+}

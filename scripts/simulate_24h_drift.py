@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
 import matplotlib
 import numpy as np
@@ -13,15 +14,37 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from quantum_optical_bus.viz_style_ieee import (
-    FIGURE_WIDTH_2COL_IN,
     SERIES_BLUE,
     SERIES_ORANGE,
     SERIES_TEAL,
-    apply_ieee_style,
-    ieee_figsize,
+    apply_review_layout,
+    set_tab_title,
+    set_review_axis,
     save_ieee,
-    style_axis,
 )
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+try:
+    from asset_profile import PROFILE_OPTIONS, normalize_profiles, resolve_outputs
+except ModuleNotFoundError:
+    from scripts.asset_profile import PROFILE_OPTIONS, normalize_profiles, resolve_outputs
+try:
+    from figstyle import (
+        apply_style,
+        canonical_canvas_inches,
+        canonical_canvas_px,
+        canonical_dpi,
+        write_figure_meta,
+    )
+except ModuleNotFoundError:
+    from scripts.figstyle import (
+        apply_style,
+        canonical_canvas_inches,
+        canonical_canvas_px,
+        canonical_dpi,
+        write_figure_meta,
+    )
 
 
 @dataclass(frozen=True)
@@ -47,6 +70,9 @@ class RecoveryTrace:
     loss_db: np.ndarray
     squeezing_db: np.ndarray
     time_hours: np.ndarray
+
+
+ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
 
 
 def _wrap_phase(phase: np.ndarray | float) -> np.ndarray | float:
@@ -191,33 +217,58 @@ def run_drift_recovery(
     )
 
 
-def plot_recovery(trace: RecoveryTrace, output_path: Path) -> None:
-    """Create the stability/recovery artifact."""
-    apply_ieee_style(base_font_size=10, tick_font_size=9)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(3, 1, figsize=ieee_figsize(width_in=FIGURE_WIDTH_2COL_IN, aspect=1.06))
+def _resolve_output_targets(output_path: Path, profile: str) -> list[tuple[Path, str]]:
+    output_path = Path(output_path)
+    if profile == "web":
+        return [(output_path, "web")]
+    if profile == "paper":
+        paper_root = output_path.parent / "paper" if output_path.parent.name != "paper" else output_path.parent
+        return [(paper_root / output_path.name, "paper")]
+    return [(target, "web" if target.parent.name == "web" else "paper") for target in dict.fromkeys(resolve_outputs(output_path, profile))]
 
-    axes[0].plot(trace.time_hours, trace.phase_rad, label="true phase")
-    axes[0].plot(trace.time_hours, trace.estimated_phase, label="estimated phase")
-    axes[0].plot(trace.time_hours, trace.command, label="applied correction")
-    style_axis(
+def plot_recovery(
+    trace: RecoveryTrace,
+    output_path: Path,
+    *,
+    profile: str = "web",
+    seed: int = 17,
+) -> None:
+    target_dpi = apply_style(
+        profile,
+        base_font_size=11 if profile == "paper" else 10,
+        tick_font_size=10 if profile == "paper" else 9,
+        dpi=canonical_dpi(profile),
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(
+        3,
+        1,
+        figsize=canonical_canvas_inches(profile),
+    )
+
+    axes[0].plot(trace.time_hours, trace.phase_rad, label="true phase", color=SERIES_ORANGE)
+    axes[0].plot(trace.time_hours, trace.estimated_phase, label="estimate", color=SERIES_BLUE)
+    axes[0].plot(trace.time_hours, trace.command, label="applied correction", color=SERIES_TEAL)
+    set_review_axis(
         axes[0],
         title="24h Drift Recovery: Drift, Estimator, Controller",
         xlabel="Time (hours)",
         ylabel="Phase (rad)",
+        integer_ticks=True,
     )
-    axes[0].legend(loc="upper right")
+    axes[0].legend(loc="upper right", frameon=False, fontsize=7, ncol=1)
     axes[0].grid(alpha=0.25)
 
     axes[1].plot(trace.time_hours, trace.residual_rad)
-    style_axis(
+    set_review_axis(
         axes[1],
         title="Residual phase after correction",
         xlabel="Time (hours)",
         ylabel="Residual phase (rad)",
+        integer_ticks=False,
     )
     axes[1].grid(alpha=0.25)
-    axes[1].axhline(0.0, color="black", linewidth=1, alpha=0.4)
+    axes[1].axhline(0.0, color="black", linewidth=0.8, alpha=0.4)
 
     ax_loss = axes[2]
     ax_gain = ax_loss.twinx()
@@ -233,9 +284,19 @@ def plot_recovery(trace: RecoveryTrace, output_path: Path) -> None:
         color=SERIES_ORANGE,
         label="squeezing (dB)",
     )
-    ax_loss.set_xlabel("Time (hours)")
-    ax_loss.set_ylabel("Loss / squeezing (dB)")
-    ax_loss.set_title("Recovered drift, measured loss/squeezing, adaptive gain")
+    ax_loss.set_ylim(np.min([np.min(trace.loss_db), np.min(trace.squeezing_db)]) - 0.2,
+                    np.max([np.max(trace.loss_db), np.max(trace.squeezing_db)]) + 0.2)
+
+    ax_loss.set_yticks(np.linspace(np.floor(ax_loss.get_ylim()[0] * 10) / 10,
+                                    np.ceil(ax_loss.get_ylim()[1] * 10) / 10,
+                                    num=6))
+    set_review_axis(
+        ax_loss,
+        title="Recovered drift, measured loss/squeezing, adaptive gain",
+        xlabel="Time (hours)",
+        ylabel="Loss / squeezing (dB)",
+        integer_ticks=True,
+    )
     ax_loss.tick_params(axis="y", colors=SERIES_BLUE)
     ax_loss.grid(alpha=0.25)
 
@@ -251,10 +312,69 @@ def plot_recovery(trace: RecoveryTrace, output_path: Path) -> None:
 
     handles = [*ax_loss.get_lines(), *ax_gain.get_lines()]
     labels = [line.get_label() for line in handles]
-    ax_loss.legend(handles, labels, loc="upper left")
+    ax_loss.legend(handles, labels, loc="upper left", frameon=False, fontsize=6.8, ncol=1)
+    ax_loss.text(
+        0.01,
+        1.04,
+        "Controller: EMA estimator + adaptive gain scheduler.",
+        transform=ax_loss.transAxes,
+        fontsize=8,
+        color=SERIES_BLUE,
+    )
 
-    fig.tight_layout()
-    save_ieee(fig, output_path, dpi=300)
+    set_tab_title(fig, "Phase Drift Recovery (24 h simulation)", mode=profile)
+    apply_review_layout(
+        fig,
+        mode=profile,
+        left=0.08,
+        right=0.97,
+        bottom=0.07,
+        top=0.90,
+        wspace=0.20,
+        hspace=0.25,
+    )
+    for target, target_profile in _resolve_output_targets(output_path, profile):
+        dpi = canonical_dpi(target_profile)
+        canvas_px = canonical_canvas_px(target_profile)
+        save_ieee(fig, target, dpi=dpi, skip_tight_layout=True)
+        write_figure_meta(
+            target,
+            figure_id=target.stem,
+            profile=target_profile,
+            generator_script="scripts/simulate_24h_drift.py",
+            generator_args=(
+                f"--output-dir={output_path.parent}",
+                f"--profile={target_profile}",
+            ),
+            labels={
+                "title": "24h Drift Recovery",
+                "xlabel": "Time (hours)",
+                "ylabel": "Phase / Loss / Squeezing (rad / dB)",
+            },
+            units={
+                "time": "h",
+                "phase": "rad",
+                "loss": "dB",
+                "squeezing": "dB",
+            },
+            notes=(
+                "Closed-loop drift recovery trace with EMA estimation and adaptive controller gain."
+            ),
+            seed=seed,
+            dpi=dpi,
+            canvas_px=canvas_px,
+            data_payload={
+                "time_h": trace.time_hours,
+                "true_phase_rad": trace.phase_rad,
+                "estimated_phase_rad": trace.estimated_phase,
+                "measured_phase_rad": trace.measured_phase,
+                "residual_rad": trace.residual_rad,
+                "command_rad": trace.command,
+                "controller_gain": trace.controller_gain,
+                "loss_db": trace.loss_db,
+                "squeezing_db": trace.squeezing_db,
+            },
+        )
     plt.close(fig)
 
 
@@ -264,9 +384,12 @@ def run_24h_drift(
     total_hours: float = 24.0,
     steps_per_hour: int = 60,
     seed: int = 17,
+    profile: str = "web",
 ) -> Path:
     """Run the full drift/estimation/recovery pipeline and save the artifact."""
-    profile = generate_drift_profile(
+    profiles = normalize_profiles(profile)
+
+    profile_data = generate_drift_profile(
         total_hours=total_hours,
         steps_per_hour=steps_per_hour,
         seed=seed,
@@ -276,23 +399,37 @@ def run_24h_drift(
         squeezing_drift_db_per_hour=-0.04,
     )
     trace = run_drift_recovery(
-        profile,
+        profile_data,
         seed=seed + 111,
         measurement_sigma=0.02,
         estimator_alpha=0.22,
         controller_gain_init=0.95,
         controller_update_interval_steps=steps_per_hour,
+        integral_gain=0.0,
     )
-    plot_recovery(trace, output_path=output_path)
+    for profile_name in profiles:
+        plot_recovery(trace, output_path=output_path, profile=profile_name, seed=seed)
     return output_path
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate reproducible 24h drift recovery sweep.")
     parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=ASSETS_DIR,
+        help="Directory where drift artifact is written.",
+    )
+    parser.add_argument(
         "--output",
-        default=str(Path(__file__).resolve().parents[1] / "assets" / "drift_recovery.png"),
+        default="drift_recovery.png",
         help="Output PNG path.",
+    )
+    parser.add_argument(
+        "--profile",
+        default="web",
+        choices=PROFILE_OPTIONS,
+        help="Render profile: web, paper, or both.",
     )
     parser.add_argument("--total-hours", type=float, default=24.0)
     parser.add_argument("--steps-per-hour", type=int, default=60)
@@ -302,14 +439,20 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    output_arg = Path(args.output)
+    output_path = (
+        args.output_dir / output_arg.name if output_arg.parent == Path(".") else output_arg
+    )
     path = run_24h_drift(
-        output_path=Path(args.output),
+        output_path=output_path,
         total_hours=args.total_hours,
         steps_per_hour=args.steps_per_hour,
         seed=args.seed,
+        profile=args.profile,
     )
     print(f"[OK] wrote {path}")
 
 
 if __name__ == "__main__":
     main()
+

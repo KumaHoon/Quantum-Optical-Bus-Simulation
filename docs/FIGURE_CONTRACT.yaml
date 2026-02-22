@@ -1,0 +1,243 @@
+version: 1
+contract_name: "qobus-figure-contract"
+notes:
+  - "This file defines required figures, expected labels/units, and validation checks."
+  - "Verification should read meta.json and npz rather than image hashing."
+
+profiles:
+  web:
+    canvas_px: [1600, 1000]
+    dpi: 150
+    out_dir: "assets/web"
+    data_dir: "assets/web/data"
+    meta_dir: "assets/web/meta"
+  paper:
+    canvas_in: [7.0, 4.5]
+    dpi: 300
+    out_dir: "assets/paper"
+    data_dir: "assets/paper/data"
+    meta_dir: "assets/paper/meta"
+
+global_requirements:
+  must_emit_meta_json: true
+  must_emit_npz: true
+  must_include_units_in_labels: true
+  disallow_rainbow_colormap: true
+  require_grayscale_safe_design: true
+
+generation_entrypoints:
+  - id: "build_assets_profiles"
+    command: "python scripts/build_assets_profiles.py --profile {profile} --target {target}"
+  - id: "build_assets_profiles_verify"
+    command: "python scripts/build_assets_profiles.py --profile {profile} --target {target} --verify"
+
+targets:
+  advisor:
+    description: "Reviewer-facing MVP target, with roadmap visuals marked as extension."
+    figures:
+      - dashboard_vacuum
+      - dashboard_calibration
+      - dashboard_decoherence
+      - dashboard_multimode
+      - dashboard_topology
+      - dashboard_digital_twin
+      - sweep_latency
+      - sweep_quantization
+      - drift_recovery
+      - calibration_demo
+
+figures:
+  - id: "dashboard_vacuum"
+    role: "core"
+    outputs:
+      web_png: "assets/web/dashboard_vacuum.png"
+      paper_png: "assets/paper/dashboard_vacuum.png"
+      paper_pdf: "assets/paper/dashboard_vacuum.pdf"
+    companions:
+      web_npz: "assets/web/data/dashboard_vacuum.npz"
+      web_meta: "assets/web/meta/dashboard_vacuum.meta.json"
+    labels:
+      title_contains: ["Vacuum", "baseline"]
+    units_required:
+      - "Var(x) [vac=0.5]"
+      - "Var(p) [vac=0.5]"
+    validations:
+      - type: "heisenberg_sanity"
+        var_x_key: "var_x"
+        var_p_key: "var_p"
+        vacuum_var: 0.5
+      - type: "no_nan_inf"
+        keys: ["var_x", "var_p"]
+
+  - id: "dashboard_calibration"
+    role: "core"
+    outputs:
+      web_png: "assets/web/dashboard_calibration.png"
+      paper_png: "assets/paper/dashboard_calibration.png"
+      paper_pdf: "assets/paper/dashboard_calibration.pdf"
+    companions:
+      web_npz: "assets/web/data/dashboard_calibration.npz"
+      web_meta: "assets/web/meta/dashboard_calibration.meta.json"
+    units_required:
+      - "Pump power [mW]"
+      - "Squeezing X [dB]"
+      - "Probability P(n) [-]"
+    validations:
+      - type: "probability_distribution"
+        p_key: "p_n"
+        tol_sum_abs: 1.0e-3
+        require_nonnegative: true
+      - type: "no_nan_inf"
+        keys: ["pump_power_mw", "var_x", "var_p"]
+
+  - id: "dashboard_decoherence"
+    role: "core"
+    outputs:
+      web_png: "assets/web/dashboard_decoherence.png"
+      paper_png: "assets/paper/dashboard_decoherence.png"
+      paper_pdf: "assets/paper/dashboard_decoherence.pdf"
+    companions:
+      web_npz: "assets/web/data/dashboard_decoherence.npz"
+      web_meta: "assets/web/meta/dashboard_decoherence.meta.json"
+    units_required:
+      - "Loss [dB]"
+      - "Squeezing X [dB]"
+    validations:
+      - type: "loss_monotonic_observed"
+        loss_key: "loss_db"
+        observed_sq_key: "observed_sq_db_x"
+        direction: "toward_zero"
+      - type: "intrinsic_ge_observed"
+        intrinsic_sq_key: "intrinsic_sq_db_x"
+        observed_sq_key: "observed_sq_db_x"
+
+  - id: "dashboard_multimode"
+    role: "extension"
+    outputs:
+      web_png: "assets/web/dashboard_multimode.png"
+      paper_png: "assets/paper/dashboard_multimode.png"
+      paper_pdf: "assets/paper/dashboard_multimode.pdf"
+    companions:
+      web_npz: "assets/web/data/dashboard_multimode.npz"
+      web_meta: "assets/web/meta/dashboard_multimode.meta.json"
+    units_required:
+      - "Time-bin index [-]"
+      - "Squeezing X [dB]"
+    validations:
+      - type: "integer_axis"
+        axis: "time_bin_index"
+      - type: "no_nan_inf"
+        keys: ["time_bin_index"]
+
+  - id: "dashboard_topology"
+    role: "extension"
+    outputs:
+      web_png: "assets/web/dashboard_topology.png"
+      paper_png: "assets/paper/dashboard_topology.png"
+      paper_pdf: "assets/paper/dashboard_topology.pdf"
+    companions:
+      web_npz: "assets/web/data/dashboard_topology.npz"
+      web_meta: "assets/web/meta/dashboard_topology.meta.json"
+    units_required:
+      - "Mode index [-]"
+      - "Corr(X) [-]"
+      - "Corr(P) [-]"
+    validations:
+      - type: "matrix_symmetric"
+        key: "corr_x"
+      - type: "matrix_symmetric"
+        key: "corr_p"
+      - type: "corr_diagonal_one"
+        key: "corr_x"
+        tol: 1.0e-6
+      - type: "corr_diagonal_one"
+        key: "corr_p"
+        tol: 1.0e-6
+
+  - id: "dashboard_digital_twin"
+    role: "extension"
+    outputs:
+      web_png: "assets/web/dashboard_digital_twin.png"
+      paper_png: "assets/paper/dashboard_digital_twin.png"
+      paper_pdf: "assets/paper/dashboard_digital_twin.pdf"
+    companions:
+      web_npz: "assets/web/data/dashboard_digital_twin.npz"
+      web_meta: "assets/web/meta/dashboard_digital_twin.meta.json"
+    units_required:
+      - "eta [1/sqrt(mW)]"
+      - "Loss [dB]"
+      - "RMS residual [-]"
+    validations:
+      - type: "fit_reasonable_range"
+        eta_key: "eta_hat"
+        eta_min: 0.0
+        eta_max: 1.0
+      - type: "fit_reasonable_range"
+        eta_key: "loss_db_hat"
+        eta_min: 0.0
+        eta_max: 30.0
+
+  - id: "sweep_latency"
+    role: "core"
+    outputs:
+      web_png: "assets/web/sweep_latency.png"
+      paper_png: "assets/paper/sweep_latency.png"
+      paper_pdf: "assets/paper/sweep_latency.pdf"
+    companions:
+      web_npz: "assets/web/data/sweep_latency.npz"
+      web_meta: "assets/web/meta/sweep_latency.meta.json"
+    units_required:
+      - "Latency [bins]"
+    validations:
+      - type: "trend_degrades"
+        x_key: "latency_bins"
+        y_key: "retention"
+        expectation: "decrease_or_nonincrease"
+
+  - id: "sweep_quantization"
+    role: "core"
+    outputs:
+      web_png: "assets/web/sweep_quantization.png"
+      paper_png: "assets/paper/sweep_quantization.png"
+      paper_pdf: "assets/paper/sweep_quantization.pdf"
+    companions:
+      web_npz: "assets/web/data/sweep_quantization.npz"
+      web_meta: "assets/web/meta/sweep_quantization.meta.json"
+    units_required:
+      - "Quantization [-]"
+    validations:
+      - type: "trend_degrades"
+        x_key: "quantization_step"
+        y_key: "retention"
+        expectation: "increase_or_nondecrease"
+
+  - id: "drift_recovery"
+    role: "core"
+    outputs:
+      web_png: "assets/web/drift_recovery.png"
+      paper_png: "assets/paper/drift_recovery.png"
+      paper_pdf: "assets/paper/drift_recovery.pdf"
+    companions:
+      web_npz: "assets/web/data/drift_recovery.npz"
+      web_meta: "assets/web/meta/drift_recovery.meta.json"
+    units_required:
+      - "Time [h]"
+      - "Squeezing X [dB]"
+    validations:
+      - type: "recovery_target"
+        time_key: "time_h"
+        metric_key: "error_db"
+        target_time_h: 1.0
+        target_fraction_recovered: 0.15
+        steady_state_key: "steady_state_error_db"
+        steady_state_max_db: 0.5
+
+  - id: "calibration_demo"
+    role: "core"
+    outputs:
+      web_gif: "assets/web/calibration_demo.gif"
+    companions:
+      web_meta: "assets/web/meta/calibration_demo.meta.json"
+    validations:
+      - type: "gif_multiframe"
+        min_frames: 2

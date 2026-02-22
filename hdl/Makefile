@@ -18,7 +18,7 @@ endif
 all: sim
 
 $(VECTORS): $(VEC_GEN)
-	$(PYTHON) $(VEC_GEN) --output-dir vectors --count 128 --seed 13
+	$(PYTHON) $(VEC_GEN) --output-dir vectors --count 128 --seed 13 --manifest vectors/contract.json
 
 sim: $(VECTORS)
 	$(IVERILOG) -g2012 -o $(OUTPUT) $(RTL) $(TB)
@@ -35,4 +35,3 @@ clean:
 	$(RM) $(OUTPUT) $(VCD)
 
 .PHONY: all sim lint clean
-

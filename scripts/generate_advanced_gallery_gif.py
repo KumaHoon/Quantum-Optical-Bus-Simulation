@@ -3,24 +3,39 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 import subprocess
+from dataclasses import dataclass
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
+try:
+    from figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
+except ModuleNotFoundError:
+    from scripts.figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 ASSETS_DIR = ROOT_DIR / "assets"
 DASHBOARD_SCRIPT = ROOT_DIR / "scripts" / "generate_advanced_dashboard_gallery.py"
 DEFAULT_OUTPUT = ASSETS_DIR / "advanced_gallery.gif"
+try:
+    from asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+except ModuleNotFoundError:
+    from scripts.asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
 
 
 ADVANCED_IMAGES = (
-    ("Advanced 1", ASSETS_DIR / "dashboard_multimode.png"),
-    ("Advanced 2", ASSETS_DIR / "dashboard_topology.png"),
-    ("Advanced 3", ASSETS_DIR / "dashboard_digital_twin.png"),
+    ("Advanced Tab 1: Multi-mode", "dashboard_multimode.png"),
+    ("Advanced Tab 2: Topology", "dashboard_topology.png"),
+    ("Advanced Tab 3: Digital twin", "dashboard_digital_twin.png"),
 )
+
+
+def _source_image(base_dir: Path, filename: str) -> Path:
+    for candidate in candidate_output_paths(base_dir, filename):
+        if candidate.exists():
+            return candidate
+    return base_dir / filename
 
 
 @dataclass(frozen=True)
@@ -43,7 +58,13 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT,
         help="Output GIF path (default: assets/advanced_gallery.gif).",
     )
-    parser.add_argument("--fps", type=float, default=9.0, help="GIF frame rate.")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=ASSETS_DIR,
+        help="Directory where source PNGs and target GIF are stored.",
+    )
+    parser.add_argument("--fps", type=float, default=9.0, help="Frame rate.")
     parser.add_argument(
         "--hold-seconds",
         type=float,
@@ -62,25 +83,58 @@ def parse_args() -> argparse.Namespace:
         default=960,
         help="Maximum output frame width before resizing (default: 960).",
     )
-    parser.add_argument("--label-size", type=int, default=24, help="Corner label font size.")
+    parser.add_argument(
+        "--label-size",
+        type=int,
+        default=24,
+        help="Corner label font size.",
+    )
     parser.add_argument("--colors", type=int, default=144, help="GIF palette size.")
     parser.add_argument(
         "--save-mp4",
         action="store_true",
         help="Also save MP4 output when ffmpeg is available.",
     )
+    parser.add_argument(
+        "--profile",
+        default="web",
+        choices=PROFILE_OPTIONS,
+        help="Render profile: web, paper, or both.",
+    )
     return parser.parse_args()
 
 
-def ensure_images_exist() -> None:
-    missing = [str(p) for _, p in ADVANCED_IMAGES if not p.exists()]
+def _advanced_paths(base_dir: Path) -> list[tuple[str, Path]]:
+    return [(label, _source_image(base_dir, name)) for label, name in ADVANCED_IMAGES]
+
+
+def ensure_images_exist(base_dir: Path, profile: str) -> None:
+    missing = [
+        name
+        for name in [name for _, name in ADVANCED_IMAGES]
+        if not (
+            any(candidate.exists() for candidate in candidate_output_paths(base_dir, name))
+        )
+    ]
     if not missing:
         return
+
+    regen_profile = "both" if profile in {"paper", "both"} else profile
     print("Missing advanced PNGs detected, regenerating advanced dashboard images...")
-    subprocess.run([sys.executable, str(DASHBOARD_SCRIPT)], check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            str(DASHBOARD_SCRIPT),
+            "--output-dir",
+            str(base_dir),
+            "--profile",
+            regen_profile,
+        ],
+        check=True,
+    )
 
 
-def load_labeled_image(path: Path, label: str, target_width: int, label_size: int) -> Image.Image:
+def load_labeled_image(path: Path, target_width: int) -> Image.Image:
     image = Image.open(path).convert("RGBA")
     if image.width > target_width:
         scale = target_width / image.width
@@ -91,38 +145,12 @@ def load_labeled_image(path: Path, label: str, target_width: int, label_size: in
             ),
             Image.Resampling.LANCZOS,
         )
-
-    try:
-        label_font = ImageFont.truetype("DejaVuSans.ttf", size=label_size)
-    except OSError:
-        label_font = ImageFont.load_default()
-
-    draw = ImageDraw.Draw(image)
-    text = label
-    text_bbox = draw.textbbox((0, 0), text, font=label_font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
-    pad = max(8, label_size // 3)
-    x = 14
-    y = image.height - text_height - (pad * 2) - 4
-
-    bg_left = x - 6
-    bg_top = y - 4
-    bg_right = x + text_width + 12
-    bg_bottom = y + text_height + 8
-    draw.rounded_rectangle(
-        (bg_left, bg_top, bg_right, bg_bottom),
-        radius=max(6, label_size // 4),
-        fill=(0, 0, 0, 175),
-        outline=(255, 255, 255, 120),
-        width=1,
-    )
-    draw.text((x, y), text, fill=(255, 255, 255, 235), font=label_font)
-
     return image
 
 
-def make_equal_canvas(images: list[Image.Image], bg=(10, 18, 30, 255)) -> list[Image.Image]:
+def make_equal_canvas(
+    images: list[Image.Image], bg=(10, 18, 30, 255)
+) -> list[Image.Image]:
     target_w = max(im.width for im in images)
     target_h = max(im.height for im in images)
     framed: list[Image.Image] = []
@@ -144,7 +172,6 @@ def build_frames(
     hold_frames = max(1, int(round(config.hold_seconds * config.fps)))
     fade_frames = max(1, int(round(config.crossfade_seconds * config.fps)))
     frame_duration_ms = max(1, int(1000 / config.fps))
-
     frames: list[Image.Image] = []
     durations: list[int] = []
 
@@ -152,7 +179,6 @@ def build_frames(
         for _ in range(hold_frames):
             frames.append(image)
             durations.append(frame_duration_ms)
-
         if i + 1 >= len(images):
             continue
         nxt = images[i + 1]
@@ -160,7 +186,7 @@ def build_frames(
             alpha = step / (fade_frames + 1)
             frames.append(Image.blend(image, nxt, alpha))
             durations.append(frame_duration_ms)
-
+    assert len(frames) > 2, "Generated GIF must contain more than one frame."
     return frames, durations
 
 
@@ -168,6 +194,7 @@ def optimize_and_save(
     frames: list[Image.Image],
     durations: list[int],
     config: RenderConfig,
+    profile: str,
 ) -> None:
     if not frames:
         raise RuntimeError("No frames generated.")
@@ -180,22 +207,40 @@ def optimize_and_save(
         )
         for frame in frames
     ]
-
-    config.output.parent.mkdir(parents=True, exist_ok=True)
-    quantized[0].save(
-        config.output,
-        save_all=True,
-        append_images=quantized[1:],
-        duration=durations,
-        loop=0,
-        optimize=True,
-        disposal=2,
-        include_color_table=True,
-    )
-    print(f"[OK] Saved GIF: {config.output} ({config.output.stat().st_size} bytes)")
-
-    if config.save_mp4:
-        save_mp4_if_available(config.output)
+    for out in resolve_outputs(config.output, profile):
+        quantized[0].save(
+            out,
+            save_all=True,
+            append_images=quantized[1:],
+            duration=durations,
+            loop=0,
+            optimize=True,
+            disposal=2,
+            include_color_table=True,
+        )
+        print(f"[OK] Saved GIF: {out} ({out.stat().st_size} bytes)")
+        target_profile = out.parent.name
+        with Image.open(out) as frame:
+            canvas_px = frame.size
+        write_figure_meta(
+            out,
+            figure_id=out.stem,
+            profile=target_profile,
+            generator_script="scripts/generate_advanced_gallery_gif.py",
+            generator_args=(f"--output={config.output}", f"--profile={target_profile}"),
+            labels={
+                "title": "Advanced gallery",
+                "xlabel": "frame index",
+                "ylabel": "N/A",
+            },
+            units={"x": "count", "time": "frame"},
+            notes="Cross-fade GIF for advanced dashboard scenarios.",
+            seed=11,
+            dpi=canonical_dpi(target_profile),
+            canvas_px=canvas_px if isinstance(canvas_px, tuple) else canonical_canvas_px(target_profile),
+        )
+        if config.save_mp4:
+            save_mp4_if_available(out)
 
 
 def save_mp4_if_available(gif_path: Path) -> None:
@@ -208,31 +253,27 @@ def save_mp4_if_available(gif_path: Path) -> None:
 
     try:
         import imageio.v2 as imageio
-    except Exception as exc:
-        print(f"[WARN] imageio not available for MP4 generation: {exc}")
-        return
-
-    mp4_path = gif_path.with_suffix(".mp4")
-    try:
         with imageio.get_reader(gif_path) as reader:
             frames = [f for f in reader]
         if not frames:
             print("[WARN] GIF has no frames; skipped MP4.")
             return
-
-        imageio.mimsave(mp4_path, frames, fps=9.0)
-        print(f"[OK] Also saved MP4: {mp4_path}")
+        imageio.mimsave(gif_path.with_suffix(".mp4"), frames, fps=9.0)
+        print(f"[OK] Also saved MP4: {gif_path.with_suffix('.mp4')}")
     except Exception as exc:
         print(f"[WARN] MP4 generation failed: {exc}")
 
 
 def main() -> None:
     args = parse_args()
-    ensure_images_exist()
+    if args.output.parent == Path("."):
+        args.output = args.output_dir / args.output.name
+    ensure_images_exist(args.output_dir, args.profile)
 
+    advanced_images = _advanced_paths(args.output_dir)
     raw_images = [
-        load_labeled_image(path, label, args.max_width, args.label_size)
-        for label, path in ADVANCED_IMAGES
+        load_labeled_image(path, args.max_width)
+        for _, path in advanced_images
     ]
     framed = make_equal_canvas(raw_images)
     config = RenderConfig(
@@ -245,8 +286,10 @@ def main() -> None:
         output=args.output,
         save_mp4=args.save_mp4,
     )
+    profiles = normalize_profiles(args.profile)
     frames, durations = build_frames(framed, config)
-    optimize_and_save(frames, durations, config)
+    for profile in profiles:
+        optimize_and_save(frames, durations, config, profile)
 
 
 if __name__ == "__main__":

@@ -1,322 +1,464 @@
-# Quantum Optical Bus - Calibration Dashboard [![CI](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml)
+# Quantum Optical Bus Simulation - Calibration Dashboard
+[![CI](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/KumaHoon/Quantum-Optical-Bus-Simulation/actions/workflows/ci.yml)
 
-English | [日本語](docs/README.ja.md) | [한국어](docs/README.ko.md) | [中文](docs/README.zh.md)
+English
 
-A hybrid quantum-classical simulation demonstrating **"One Waveguide (Hardware), Infinite States (Software)"**.
+A hybrid quantum--classical **simulation + Streamlit dashboard** for exploring how a classical control knob (pump power) maps to continuous-variable (CV) **squeezed states**, and how propagation/detection loss reduces **observed** squeezing.
+This repository targets **loop-based / time-domain-multiplexed optical quantum workflows**, where squeezed-state generation and homodyne measurement are coupled with model identification and control updates. The closed-loop path (**measurement -> estimation -> control**) is represented explicitly as a reproducible **digital-twin + control pipeline**.
 
-It includes a calibration dashboard that maps classical pump power to continuous-variable (CV) quantum states with explicit mapping $r=\eta\sqrt{P}$, where this mapping is a proxy used by the current dashboard implementation.[^sqrtP_proxy]
+## Documents (review boundary)
 
----
+### Core (README route)
+- `docs/PROJECT_SPEC.md`
+- `docs/figure_checklist.md`
+- `docs/EVIDENCE_PACK.md`
+- `docs/ARCHITECTURE.md`
+- `docs/data_schema.md`
 
-## Live Demo
+### Roadmap / Appendix
+- `docs/ROADMAP.md`
+- `docs/REFERENCES.md`
 
-The dashboard sweeps pump power from 0 to 200 mW (squeezed ellipse forms), then increases propagation loss from 0 to 2 dB (decoherence restores the circular vacuum shape). **Loss does not change intrinsic $r$; it reduces observed squeezing.**
+### Archive (non-binding)
+- `docs/AUDIT_REPORT.md`
+- `docs/RELEASE_NOTES.md`
+- `docs/APPENDIX_GKP.md` (retained for historical reference only)
 
-![Calibration demo (power sweep then loss sweep)](assets/calibration_demo.gif)
+## Platform note
 
-> **Figure 1: Real-time Calibration Simulation.**  
-> The GIF shows intrinsic squeezing (pre-loss), which is constant for a fixed pump power, and observed squeezing (post-loss), which decreases as propagation loss increases.
+Platform note: The control-evidence pattern (latency/quantization sweeps + fixed-point HDL contract + reproducible artifacts) is platform-agnostic and can be adapted to other measurement/control chains (e.g., microwave or hybrid systems).
 
-This figure validates the mapping $r\propto\sqrt{P}$ and the decoherence effect of the pure-loss channel.
-
----
-
-## Architecture
-
-The diagram below presents the source-driven architecture as:
-
-1) Context (user + dashboard),  
-2) main hot path (input → mapping/units → simulation → diagnostics),  
-3) optional hardware/backend path,  
-4) feedback path (`estimation.py` → `control.py`).
-
-```mermaid
-flowchart TD
-  %% Context
-  User([Researcher / Operator]) --> App["Streamlit UI<br/>calibration_app.py<br/>Orchestrator"]
-
-  %% Hot path
-  subgraph HOT["Hot path: input → mapping/units → simulation → outputs"]
-    Mapping["interface.py<br/>P → r mapping (r=η√P)"]
-    UnitMap["units.py<br/>loss(dB) ↔ transmissivity T"]
-    Quantum["quantum.py<br/>Sgate / Rgate / LossChannel"]
-    Output["Wigner + covariance + metrics"]
-  end
-
-  App -->|sliders: P, loss, θ| Mapping --> Quantum
-  App -->|loss in dB| UnitMap --> Quantum
-  Quantum --> Output --> App
-
-  %% Optional path
-  subgraph OPT["Optional model/engine path"]
-    HW["hardware.py<br/>Meep optional / analytic mock"]
-    SF["Strawberry Fields<br/>(Gaussian backend)"]
-    Meep["Meep<br/>mode profile / Aeff / n_eff"]
-  end
-
-  App -->|hardware params| HW
-  HW -.->|optional profile| App
-  Quantum -.-> SF
-  HW -.-> Meep
-  HW -.-> Qext["mode constraints to<br/>interface/units"]
-  Qext --> Mapping
-  Qext --> UnitMap
-
-  %% Feedback path
-  subgraph FB["Feedback path"]
-    Est["estimation.py<br/>fit η and loss"]
-    Ctrl["control.py<br/>phase drift + latency feedback"]
-  end
-
-  App -->|measured variance/squeezing curves| Est
-  Est -->|eta_hat, loss_hat| Ctrl
-  Ctrl -->|residual / correction updates| App
-
-  %% Extensions
-  App --> Multi["multimode.py<br/>mode-wise time-bin pipeline"]
-  App --> Top["tdm_topology.py<br/>topology + couplings"]
-  Multi -->|mode metrics| App
-  Top -->|correlations| App
-```
-
-The dashboard application (`src/quantum_optical_bus/calibration_app.py`) is the orchestrator: it reads UI inputs, runs the computational modules, and renders Wigner functions, quadrature plots, and control/fitting diagnostics.
-
-### Responsibility table
-
-| Layer | File | Responsibility |
-|---|---|---|
-| Hardware | `src/quantum_optical_bus/hardware.py` | Runs Meep eigenmode attempt when installed and always falls back to analytical Gaussian mock; returns fundamental-mode profile, effective index, and mode area. |
-| Mapping | `src/quantum_optical_bus/interface.py` | Defines pump-power mapping used in dashboards: $r=\eta\sqrt{P}$. |
-| Units | `src/quantum_optical_bus/units.py` | Converts dB loss to transmissivity (`db_to_eta`) and rescales covariance to vacuum=0.5 convention (`sf_cov_to_vacuum05`). |
-| Quantum engine | `src/quantum_optical_bus/quantum.py` | `run_single_mode`: applies `Sgate`, optional `Rgate`, optional `LossChannel`, returns Wigner/covariance metrics (`mean_photon`, `var_x`, `var_p`, observed squeezing / anti-squeezing). |
-| Multimode extension | `src/quantum_optical_bus/multimode.py` | `run_multimode`: per-mode independent `Sgate` / `Rgate` / `LossChannel` pipeline with optional Wigner extraction. |
-| Topology extension | `src/quantum_optical_bus/tdm_topology.py` | `simulate_topology`: per-mode local gates plus ordered BS couplings from config, returns mode covariances and neighbor correlations. |
-| Calibration / digital twin | `src/quantum_optical_bus/estimation.py` | `fit_eta_and_loss`: nonlinear fit of `eta` and loss to measured variance/squeezing curves. |
-| Control loop | `src/quantum_optical_bus/control.py` | Simulates phase drift (`simulate_phase_drift`) and latency-limited feedback (`apply_feedback_with_latency`), outputs residual/error retention metrics. |
-| Orchestrator UI | `src/quantum_optical_bus/calibration_app.py` | Streamlit app that wires all modules, computes derived quantities, and presents phase workflows (hardware view, calibration, single-mode, multi-mode, topology, and digital twin). |
-
-### Roadmap notes (source-based and current scope)
-
-- `hardware.py` includes a hardware simulation path but does not drive the live calibration map $r$ in the current MVP.
-- `interface.py` keeps the squeezing coupling $\eta$ as a phenomenological parameter rather than a value extracted from hardware overlap integrals.
-- `tdm_topology.py` uses a static sequence of configured couplings in MVP form (no full timing jitter/hardware dispatch layer).
-
-For more implementation details, assumptions, and module interaction notes, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+> **Core idea (white-box):** separate **intrinsic** squeezing (set by the source parameter `r`) from **observed** squeezing (after a pure-loss channel).
 
 ---
 
-## Hardware-in-the-Loop Expansion
+## Reading guide (for busy reviewers)
 
-![Hardware-in-the-Loop expansion flow](docs/figures/hil_expansion.png)
+- **30 seconds:** [What it is](#what-it-is-30-seconds) + [Run it now](#run-it-now-30-seconds) + [Live demo](#live-demo)
+- **3 minutes:** [Scope (Implemented vs Roadmap)](#scope-implemented-vs-roadmap) + [Research-ready onboarding story](#research-ready-onboarding-story) + [Architecture](#architecture)
+- **10 minutes:** [Model assumptions](#model-assumptions-10-minutes) + [Reproducing figures / artifacts](#reproducing-figures--artifacts) + `docs/ARCHITECTURE.md`
+- **MVP acceptance note:** mandatory review claims are limited to Core documents and checklist items above; roadmap/appendix artifacts are excluded from MVP evidence gates.
 
-> **Figure 2: Future Hardware-in-the-Loop expansion plan.**
+### 30s/3min reviewer route
 
-The roadmap adds a hardware-aware loop:
+- **0:00-0:30 (Rapid review pass)**
+  1. Confirm the one-line problem statement and core contribution in [What it is](#what-it-is-30-seconds).
+  2. Check run-readiness via [Run it now](#run-it-now-30-seconds) (or open the live demo).
+  3. In [Live demo](#live-demo), validate these three points:
+     - intrinsic vs observed separation
+     - observed squeezing decreases as loss increases
+     - Wigner and distribution are physically consistent
+  4. For implementation-focused verification: track proxy metrics for `(intrinsic-observed) squeeze`, RMS phase residual, and retention against baseline.
+- **0:30-1:00 (FPGA evidence verification check)**
+  1. In [FPGA evidence check](#fpga-evidence-check-30-second-routine), verify fixed-point contract + RTL evidence.
+  2. Check `hdl/vectors/contract.json`, `.mem` files, and VCD output.
+  3. Confirm manifest reports `Q1.15` and 2-cycle latency.
+- **1:00-3:00 (Technical trust check)**
+  1. In [Scope (Implemented vs Roadmap)](#scope-implemented-vs-roadmap), confirm implemented vs deferred scope.
+  2. In [Research-ready onboarding story](#research-ready-onboarding-story), verify the roadmap for `data/raw` -> `fit_lab_data.py` -> regenerate loop.
+  3. In [Architecture](#architecture), verify loop-based/closed-loop path (measurement -> estimation -> control).
+  4. In [Figure policy](#figure-policy-review-friendly), confirm axis/label/unit consistency for key PNG/GIFs (`dashboard_*`, `sweep_*`, `drift_recovery`).
 
-- optical path (laser/OPA/loop/homodyne),
-- control path (ADC/FPGA/DAC/EOM driver),
-- world-model path (`estimation.py` → updated controller coefficients → `hdl` deployment).
-
----
-
-## Scenario Gallery
-
-| Scenario | Image |
-|---|---|
-| **1. Vacuum Baseline (P = 0 mW)** | ![Vacuum Baseline](assets/dashboard_vacuum.png) |
-| **2. Squeezed State (P = 200 mW)** | ![Calibration + Squeezing](assets/dashboard_calibration.png) |
-| **3. Decoherence (Pure vs Lossy)** | ![Decoherence Comparison](assets/dashboard_decoherence.png) |
-
-### Scenario Gallery GIF
-
-![Scenario gallery animation](assets/scenario_gallery.gif)
-
----
-
-## Advanced Gallery
-
-| Scenario | Image |
-|---|---|
-| **4. Multi-mode / Time-bin Simulator** | ![Multi-mode Dashboard](assets/dashboard_multimode.png) |
-| **5. Topology Simulator** | ![Topology Dashboard](assets/dashboard_topology.png) |
-| **6. Digital Twin + Control** | ![Digital Twin Dashboard](assets/dashboard_digital_twin.png) |
-
-### Advanced Gallery GIF
-
-![Advanced gallery animation](assets/advanced_gallery.gif)
+Recommendation: run the 3-minute route and then check remaining items in `docs/figure_checklist.md` under its `30s / 3min` route section.
 
 ---
 
-## Evidence Gallery
+<a id="what-it-is-30-seconds"></a>
+## What it is (30 seconds)
 
-### Advanced Evidence GIF
+This repository provides:
 
-![Advanced evidence summary animation](assets/advanced_evidence.gif)
+- A **Streamlit dashboard** (`src/quantum_optical_bus/calibration_app.py`) to visualize squeezed-state calibration and loss-driven decoherence.
+- A **Gaussian CV simulation core** powered by **Strawberry Fields** (Gaussian backend).
+- Extensions for:
+  - **multi-mode/time-bin** (independent modes),
+  - **topology simulation** with beam-splitter couplings,
+  - an MVP **digital twin** (fit `(eta, loss)` from data),
+  - a toy **latency-aware feedback** model for phase drift.
 
 ---
 
-## Quick Start
+<a id="run-it-now-30-seconds"></a>
+## Run it now (30 seconds)
+
+### Option A - Docker (recommended, lowest friction)
 
 ```bash
-# Install
-pip install -e .
-
-# Launch dashboard
-streamlit run src/quantum_optical_bus/calibration_app.py
-```
-
-Then open **http://localhost:8501** and use the sidebar sliders.
-
-### Docker Quick Start
-
-Tested for Docker runtime with **Python 3.10** (Strawberry Fields compatibility).
-
-```bash
-docker build .
 docker compose up --build
 ```
 
-Then open **http://localhost:8501**.
+Open: **[http://localhost:8501](http://localhost:8501)**
 
-### Language Notes
+### Option B - Local install (Python 3.10)
 
-See translation versions in:
-
-- `docs/README.ja.md`
-- `docs/README.ko.md`
-- `docs/README.zh.md`
-
-### Additional Commands
-
-| Task | Command |
-|---|---|
-| Generate Gallery Images | `python scripts/generate_dashboard_gallery.py` |
-| Generate Advanced Gallery Images | `python scripts/generate_advanced_dashboard_gallery.py` |
-| Generate Scenario Gallery GIF | `python scripts/generate_scenario_gallery_gif.py` |
-| Generate Advanced Gallery GIF | `python scripts/generate_advanced_gallery_gif.py` |
-| Generate Advanced Evidence GIF | `python scripts/generate_advanced_evidence_gif.py` |
-| Generate HIL Infographic | `python scripts/generate_hil_infographic.py` |
-| Generate Demo GIF | `python scripts/generate_calibration_demo.py` |
-
-Topology config example:
+> This project targets **Python 3.10** (Strawberry Fields compatibility).
 
 ```bash
-python -c "from quantum_optical_bus.tdm_topology import simulate_topology; print(simulate_topology('examples/topology_chain.json').observed_sq_db)"
-```
+python3.10 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
 
-### Task Runner
+# core install
+pip install -e .
 
-This repository includes a minimal `Makefile`:
+# (optional) extras for dashboard/GIF generation + tests
+pip install -e ".[demo,test]"
 
-```bash
-make test  # run pytest
-make lint  # lightweight checks (python -m compileall src tests)
-make app   # launch Streamlit dashboard
-```
-
-If `make` is unavailable (common on Windows shells), run:
-
-```bash
-python -m pytest -q
-python -m compileall src tests
 streamlit run src/quantum_optical_bus/calibration_app.py
 ```
 
 ---
 
-## Model Definitions and Assumptions
+<a id="live-demo"></a>
+## Live demo
 
-### Squeezing parameter and control knob
+The demo shows:
 
-The squeezing parameter is mapped from pump power:
+1. pump power sweep -> ellipse forms (intrinsic squeezing increases)
+2. loss sweep -> ellipse collapses toward vacuum (observed squeezing decreases)
 
-$$
-r=\eta\sqrt{P}
-$$
+![Calibration demo (power sweep then loss sweep)](assets/web/calibration_demo.gif)
 
-This is a phenomenological control proxy, not yet a full hardware-derived parameter estimate.[^sqrtP_proxy]
+> **Figure 1. Calibration demo.** Intrinsic squeezing is set by the source parameter `r` (proxy mapping from pump power).
+> Observed squeezing is computed **after** the loss channel and decreases monotonically with increasing loss.
 
-$\eta=0.1$ is a placeholder coupling coefficient so that 100 mW approximates $r\approx 1.0$.
+---
 
-This is the source-side knob and is independent of downstream loss.
+<a id="scope-implemented-vs-roadmap"></a>
+## Scope (Implemented vs Roadmap)
 
-For a single-mode squeezed vacuum state, quadrature variance scales with the squeezing parameter as $V_x\propto e^{-2r}$ and $V_p\propto e^{+2r}$ (up to convention), which we use here as a modeling convention for visualization and diagnostics.[^squeezing_vacuum]
+### Implemented (current version)
 
-### Loss model
+* [x] **Proxy mapping** from pump power to squeezing: `r = eta * sqrt(P)` (phenomenological placeholder)
+* [x] **Single-mode Gaussian circuit**: `Sgate`, `Rgate`, `LossChannel` -> Wigner + covariance metrics
+* [x] Explicit **intrinsic vs observed** squeezing reporting
+* [x] Multi-mode / time-bin simulator (independent modes)
+* [x] Topology simulator (config-driven beam-splitter couplings + per-mode loss)
+* [x] MVP **digital twin estimation**: fit `(eta, loss_db)` from variance/squeezing curves
+* [x] Toy **latency-aware feedback** for phase drift
+* [x] Single-command artifact generation and verification scripts
+* [x] Scripts for web/paper artifact generation
+* [x] Scripts to generate **gallery PNG/GIF** artifacts + CI tests
 
-Propagation and detection losses are modeled as a pure-loss channel applied after squeezing:
+### Not yet implemented (roadmap items)
 
-$$
-T = 10^{-\frac{\mathrm{loss}_{\mathrm{dB}}}{10}}
-$$
+* [ ] Hardware-derived `eta` from overlap integrals / chi(2) / measured calibration data (closing the loop from hardware to `r`)
+* [ ] Full timing/clock/jitter model and a real actuator dispatch layer
+* [ ] Non-Gaussian effects (pump depletion, higher-order processes, etc.)
+* [ ] Full hardware-in-the-loop deployment path (`hdl/`) in a closed loop
+* [ ] Full loop-based hardware-in-the-loop stack (loop-platform-ready target), including closed-loop actuation and hardware telemetry.
+* [ ] Data-to-control pipeline (`data/raw` -> `fit_lab_data.py` -> rebuild artifacts via `build_assets_profiles.py`) as a roadmap implementation item.
 
-This avoids KaTeX/LaTeX underscore parsing issues (the code variable is `loss_dB`, while the math uses $\mathrm{loss}_{\mathrm{dB}}$).
+### Non-goals (explicit)
 
-The forward relation for reporting power loss is:
+- No claims of equivalence to a complete experimental stack in this MVP.
+- No board-level FPGA bring-up path (HDL simulation + manifest-based verification only).
+- No cluster-scale routing/scheduler/MBQC compiler; control scope is currently loop-based calibration and drift automation.
 
-$$
-\mathrm{loss}_{\mathrm{dB}} = -10\log_{10}(T)
-$$
+See: `docs/ROADMAP.md`
 
-and the channel model is:
+---
 
-$$
-\hat{a}_{\mathrm{out}}=\sqrt{T}\,\hat{a}_{\mathrm{in}}+\sqrt{1-T}\,\hat{a}_{\mathrm{vac}}
-$$
+<a id="architecture"></a>
+## Architecture
 
-Observed squeezing is derived from output covariances and tends to zero as $T\to 0$.
+### 1) System view (Context / Containers)
 
-### Honest notes about placeholders
+```mermaid
+flowchart LR
+  User[Researcher / Operator] --> UI[Streamlit dashboard<br/>calibration_app.py]
+  UI --> Core[quantum_optical_bus<br/>Python package]
 
-- `hardware.py` is optional Meep integration with analytic fallback; it is not yet a full production-calibration extractor.
-- `interface.py` uses a fixed coupling map rather than measured overlap-based calibration.
-- `tdm_topology.py` models an ordered static inter-bin coupling list with per-mode loss; it does not yet include full waveform/clock coupling effects.
-- `multimode.py` is per-bin independent by design in the current version.
-- `estimation.py` and `control.py` are MVP-level fitting + simplified drift/latency routines intended for study workflows.
+  Core --> SF[Strawberry Fields<br/>Gaussian backend]
+  Core -. optional .-> Meep[Meep (optional)]
 
-[^sqrtP_proxy]: Proxy mapping for this repository's calibration demo: Squeezing lab manual for OPA characterization and power-law fitting guidance, https://indico.fysik.su.se/event/9433/contributions/14609/attachments/6285/8488/Squeezing_Lab_Manual_WACQT_Lab%20%281%29.pdf
-[^squeezing_vacuum]: Quadrature-variance scaling in squeezed vacuum (with common conventions), https://mx.nthu.edu.tw/~rklee/files/QO-note-squeezed.pdf
-[^db_conversion]: Standard power/attenuation conversion in dB used with the same laboratory notes: https://indico.fysik.su.se/event/9433/contributions/14609/attachments/6285/8488/Squeezing_Lab_Manual_WACQT_Lab%20%281%29.pdf
+  Core --> UI
+  Scripts[scripts/*] --> Assets[assets/web/* and assets/paper/* (PNG/GIF)]
+```
+
+**Boundary note:** in the current MVP, the Meep path is **not** used to compute `r`; it is a hardware-view placeholder and a future integration hook.
+
+### 2) Component view (Hot path + extensions)
+
+```mermaid
+flowchart TD
+  UI[calibration_app.py] --> Map[interface.py<br/>P -> r]
+  UI --> Units[units.py<br/>loss_dB -> T]
+
+  Map --> SM[quantum.py<br/>run_single_mode]
+  Units --> SM
+  SM --> UI
+
+  Map --> MM[multimode.py<br/>run_multimode]
+  Units --> MM
+  MM --> UI
+
+  Map --> Topo[tdm_topology.py<br/>simulate_topology]
+  Units --> Topo
+  Topo --> UI
+
+  UI --> Est[estimation.py<br/>fit_eta_and_loss]
+  Est --> Ctrl[control.py<br/>latency + drift]
+  Ctrl --> UI
+
+  UI -. optional .-> HW[hardware.py<br/>Meep / analytic mock]
+  HW -.-> UI
+```
+
+More details: `docs/ARCHITECTURE.md`
+
+---
+
+## Gallery (auto-generated artifacts)
+
+> These figures are auto-generated from scripts in `scripts/`.
+> If any figure looks "tight" (text near edges), regenerate with the latest script settings and review layout before using in a paper/slide.
+> For MVP acceptance, reviewer-visible acceptance points are taken from the `assets/web` MVP subset.
+
+### <a id="figure-policy-review-friendly"></a>Figure policy (review-friendly)
+
+Use this section as the first-pass evidence layer.
+
+- Core figure policy:
+  - prioritize one claim per figure (single-message)
+  - prefer `assets/web` for review, `assets/paper` only after approval
+  - labels, legends, and units must be readable without context lookup
+  - avoid color-only encoding and avoid decorative clutter
+  - use redundant encoding (line/marker/labels) for critical comparisons
+- Alignment reference: `docs/figure_checklist.md`, `docs/FIGURE_STYLE.md`, and `docs/FIGURE_CONTRACT.yaml` (Zabala-inspired rubric + hard style/metadata contract).
+
+### Core evidence (3-minute path)
+
+- **Primary claim (30 sec / 3 min):**
+  - Calibration dynamics + intrinsic/observed behavior: `assets/web/calibration_demo.gif`
+  - Decoherence realism: `assets/web/dashboard_decoherence.png`
+  - Control-constraint sensitivity: `assets/web/sweep_latency.png` (or `assets/web/sweep_quantization.png`), both validated under advisor/MVP profile
+
+Interpretation cue:
+- one figure, one message; one reviewer pass in ~3 minutes.
+
+See `docs/EVIDENCE_PACK.md` for full claim -> evidence -> limitation mapping.
+
+<details>
+<summary><b>Extensions (optional)</b></summary>
+
+- `assets/web/dashboard_multimode.png` (multi-mode / time-bin)
+- `assets/web/dashboard_topology.png` (topology simulator)
+- `assets/web/dashboard_digital_twin.png` (digital twin + control)
+- `assets/web/drift_recovery.png` (24h recovery behavior)
+
+</details>
+
+<details>
+<summary><b>Appendix</b></summary>
+
+- `docs/APPENDIX_GKP.md` (appendix-only, non-MVP)
+
+</details>
+
+> Roadmap visuals (for example: `gkp_proxy`, scenario/advanced gallery GIFs, and advanced evidence scripts) are excluded from MVP review path.
+
+### Paper assets
+
+`python scripts/build_assets_profiles.py --profile both --target advisor` followed by `--verify` renders publication-oriented versions with white background and print-safe typography into:
+
+- `assets/paper/dashboard_*.png`
+- `assets/paper/dashboard_*.pdf`
+- `assets/paper/sweep_*.png`
+- `assets/paper/drift_recovery.png`
+
+---
+
+<a id="model-assumptions-10-minutes"></a>
+## Model assumptions (10 minutes)
+
+### 1) Squeezing proxy (source-side control knob)
+
+We map pump power (mW) to squeezing parameter:
+
+`r = eta * sqrt(P)`
+
+where `P` is pump power in mW, `eta` is a phenomenological coefficient, and `r` is the squeezing parameter used by the CV model.
+
+* In this MVP, `eta` is a **phenomenological placeholder** chosen for demo-scale behavior.
+* Roadmap: replace `eta` with a value derived from hardware/measurements (overlap integrals / calibration data).
+
+### 2) Loss model (pure-loss channel)
+
+We map loss in dB to transmissivity:
+
+`T = 10^{-\frac{\mathrm{loss}_{\mathrm{dB}}}{10}}`
+
+and the operator model is:
+
+`\hat{a}_{\mathrm{out}}=\sqrt{T}\,\hat{a}_{\mathrm{in}}+\sqrt{1-T}\,\hat{a}_{\mathrm{vac}}`
+
+Conventions:
+
+* covariance is rescaled to **vacuum variance = 0.5** in `units.py`.
+
+---
+
+<a id="reproducing-figures--artifacts"></a>
+## Reproducing figures / artifacts
+
+```bash
+# Recommended standard flow: one command for web + paper regeneration.
+# - Default profile is `both`; use only web/paper when you need to constrain output profile.
+# - Reviewer baseline uses advisor/mvp target.
+python scripts/build_assets_profiles.py --profile both --target advisor
+python scripts/build_assets_profiles.py --profile both --target advisor --verify
+```
+
+### Fast regeneration of reviewer-facing MVP outputs (recommended)
+
+When many artifacts are already present, regenerate only the squeezed-light essentials with:
+
+```bash
+python scripts/build_assets_profiles.py --profile both --target advisor
+python scripts/build_assets_profiles.py --profile both --target advisor --verify
+```
+
+Current `advisor`/`mvp` scope in `docs/FIGURE_CONTRACT.yaml` is split by role:
+
+- **Core (required for minimum reviewer acceptance):**
+  - `dashboard_vacuum.png`
+  - `dashboard_calibration.png`
+  - `dashboard_decoherence.png`
+  - `sweep_latency.png`
+  - `sweep_quantization.png`
+  - `calibration_demo.gif`
+
+- **Extension / roadmap visuals:**
+  - `dashboard_multimode.png`
+  - `dashboard_topology.png`
+  - `dashboard_digital_twin.png`
+  - `drift_recovery.png`
+
+# Individual script regeneration should be used only for exceptional cases.
+python scripts/generate_dashboard_gallery.py --profile both
+python scripts/generate_calibration_demo.py --profile both
+python scripts/generate_control_sweeps.py --profile both
+python scripts/simulate_24h_drift.py --profile both
+python scripts/verify_assets_profiles.py --profile both
+```
+
+---
+
+### Standard workflow for calibration dataset updates (recommended)
+
+```bash
+# 1) Put raw optical CSV data in data/raw/ (schema: docs/data_schema.md)
+# 2) Fit eta / loss from the data
+python scripts/fit_lab_data.py --data data/raw/calibration_sample.csv
+
+# 3) Build both web and paper outputs
+python scripts/build_assets_profiles.py --profile both --target advisor
+
+# 4) Optional verification
+python scripts/verify_assets_profiles.py --profile both --target advisor
+
+# One-command onboarding flow (single entry):
+python scripts/onboard_from_raw.py --data-path data/raw --profile both --target advisor --verify
+```
+
+<a id="research-ready-onboarding-story"></a>
+### Research-ready onboarding story (raw data -> closed-loop update)
+
+This repo is designed to show how an operator can move from **raw optical calibration data** to a revised digital-twin model and regenerated figures in one reproducible loop.
+For lab transfer and onboarding: drop raw export data into `data/raw/`, run fit + regenerate, and compare diagnostics across versions.
+
+- `data/raw/*.csv`: raw or pre-calibrated experiment export
+  - required: `timestamp`, `pump_power_mw`, and one of:
+    - `measured_var_x`, `measured_var_p`
+    - or `measured_squeezing_db`
+  - optional: `estimated_loss_db`, `phase_estimate`
+- `scripts/fit_lab_data.py`: estimates `(eta, loss_db)` and prints fit diagnostics
+- `scripts/build_assets_profiles.py --profile both`: refreshes `assets/web` and `assets/paper`
+- `scripts/verify_assets_profiles.py --profile both`: checks pipeline health
+
+The sequence is the same as a first-day deployment workflow:
+
+1. Collect optical measurement block.
+2. Drop CSV into `data/raw/`.
+3. Run `fit_lab_data`.
+4. Regenerate dashboard artifacts with profile both.
+5. Move to next run and compare diagnostics across versions.
+
+### FPGA closed-loop direction (bound by fixed interfaces)
+
+The FPGA boundary is defined by a narrow contract, not a broad data pass-through.
+
+| Boundary | Purpose | Data format / rule |
+| --- | --- | --- |
+| Host -> FPGA input contract | Nonlinear feedforward and control outputs in RTL | Signed Q1.15 fixed-point words, `in_sample` + `in_valid`, and RTL-defined 2-cycle pipeline latency |
+| Host artifacts | Reproducible deployment evidence | `hdl/vectors/stimulus.mem`, `hdl/vectors/expected.mem`, `hdl/vectors/contract.json` |
+| Measurement -> estimator | Measurement-to-control loop | `fit_eta_and_loss` on CSV summaries (variance or squeezing), then bounded control coefficients |
+
+Deployment note:
+
+- The host extracts optics features first (DAQ/Oscilloscope reduction + filtering + metadata).
+- Only bounded fixed-point control parameters are sent to FPGA.
+- Deterministic latency, quantization, and saturation checks are enforced before deployment handoff.
+
+Commands for reproducible FPGA evidence:
+
+```bash
+python scripts/export_golden_vectors.py --output-dir hdl/vectors --count 128 --seed 13 --manifest hdl/vectors/contract.json
+make -C hdl sim
+```
+
+This keeps optical front-end complexity in Python and keeps deployment logic in a clearly testable FPGA contract.
+
+<a id="fpga-evidence-check-30-second-routine"></a>
+### FPGA evidence check (30-second routine)
+
+Run these three commands to confirm deployable FPGA evidence end-to-end:
+
+```bash
+python scripts/export_golden_vectors.py --output-dir hdl/vectors --count 128 --seed 13 --manifest hdl/vectors/contract.json
+make -C hdl sim
+python -c "import json; c=json.load(open('hdl/vectors/contract.json')); print(f\"Q-format={c['format']['format']} latency={c['format']['pipeline_latency_cycles']} cycles\")"
+```
+
+- Pass criteria: `.mem` files + manifest exist, VCD is generated with no mismatches, and the printed contract line matches the RTL expectation (`Q1.15`, `2` cycles).
 
 ---
 
 ## Testing & CI
-
-Tests run on Ubuntu, Windows, and macOS via GitHub Actions. Tested on Python 3.10 due to Strawberry Fields support.
 
 ```bash
 pip install -e ".[test]"
 python -m pytest -q
 ```
 
-Roadmap and phased acceptance criteria are documented in `docs/ROADMAP.md`.
+---
+
+## Citation
+
+If you use this repository in academic work, please cite via `CITATION.cff`.
 
 ---
 
-## Project Structure
+## Project structure
 
 ```text
 .
-├── .github/workflows/ci.yml                 # CI: Ubuntu / Windows / macOS
-├── src/
-│   └── quantum_optical_bus/
-│       ├── calibration_app.py               # Streamlit calibration dashboard
-│       ├── quantum.py                       # Single-mode Gaussian circuit helper
-│       ├── multimode.py                     # Independent multi-mode/time-bin Gaussian core
-│       ├── tdm_topology.py                  # Config-driven topology + BS couplings
-│       ├── estimation.py                    # Digital twin fitting (eta/loss)
-│       ├── control.py                       # Drift and latency control simulation
-│       ├── hardware.py                      # Meep / analytical mock interface
-│       ├── interface.py                     # Power->squeezing mapping
-│       ├── units.py                         # Units helpers and loss conversion
-│       └── compat.py                        # Dependency patches
-├── tests/
-│   ├── test_core.py                         # Core simulator tests
-│   └── test_digital_twin.py                 # Estimation/control tests
-├── scripts/
-│   ├── generate_calibration_demo.py         # Animated demo GIF
-│   ├── generate_dashboard_gallery.py        # Baseline scenario images
-│   ├── generate_advanced_dashboard_gallery.py
-│   └── ...                                  # GIF and evidence generators
-└── assets/                                  # Generated images and demo artifacts
+|-- src/quantum_optical_bus/
+|   |-- calibration_app.py
+|   |-- interface.py
+|   |-- units.py
+|   |-- quantum.py
+|   |-- multimode.py
+|   |-- tdm_topology.py
+|   |-- estimation.py
+|   |-- control.py
+|   |-- hardware.py
+|   \-- compat.py
+|-- scripts/
+|-- assets/
+\-- docs/
 ```
+
+
+

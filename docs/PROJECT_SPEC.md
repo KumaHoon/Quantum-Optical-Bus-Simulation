@@ -1,123 +1,89 @@
-# OQC World-Modeling Control Co-design MVP — Project Specification
+# Loop-based OQC Digital-Twin + Control Co-design MVP
 
 ## 0) One-line goal
-Build a reproducible, evidence-first portfolio that connects:
-(1) world modeling (data assimilation → model update)
-→ (2) control co-design (latency/filter/quantization)
-→ (3) deployable artifacts (HDL feedforward, coefficients)
-for time-domain photonic quantum computing.
+This repository targets loop-based / time-domain-multiplexed optical quantum workflows, where squeezed-state generation and homodyne measurement are coupled with model identification and control updates. The closed-loop path (measurement -> estimation -> control) is represented explicitly as a reproducible digital-twin + control pipeline.
 
-## 1) Why this exists (PI-facing intent)
-This repo must produce concrete artifacts that support four claims:
-A) Fault tolerance / logical qubit / GKP language (toy but correct).
-B) Nonlinear feedforward as a primary engineering target (HDL-ready).
-C) Long-term stability & automation (24/365-style operation mindset).
-D) World modeling loop: data → system ID → model update → deployment artifacts.
+## 1) Why this exists (technical intent)
+- **HDL-ready nonlinear feedforward** (control-pipeline readiness)
+- **24/365-style stability automation** (drift detection and retuning)
+- **Quantify how latency/quantization constraints affect observable metrics under loop-like conditions.**
+- MVP evidence scope: only README-linked artifacts and claims are acceptance-critical; roadmap-only visuals are documentation-only.
+- README-facing MVP evidence now starts with:
+  - `assets/web/calibration_demo.gif`
+  - `assets/web/dashboard_decoherence.png`
+  - `assets/web/sweep_latency.png` (or `assets/web/sweep_quantization.png`)
 
 ## 2) Scope (MVP)
-We will implement a *minimal but defensible* stack:
-
 ### A) Digital Twin (Gaussian-first)
-- Minimal time-bin / loop-like simulation (or topology abstraction if full loop is too heavy).
-- Simple Gaussian gate sequence + measurement stream output.
-- Deterministic seeds, reproducible notebook runs.
+- 4-mode time-bin, loop-like simulation (laptop-runnable, deterministic seeds)
+- Outputs include state-quality verification proxies derived from covariance (e.g., nullifier-like metrics / correlation summaries) to support scaling-relevant evaluation.
 
 ### B) Control Constraints Sweeps
-Quantify how these constraints degrade metrics:
-- Latency (bins/cycles)
-- Filtering (simple FIR/IIR model, or group-delay approximation)
-- Fixed-point quantization (bit width, rounding/saturation)
+- Measure metric sensitivity to latency, filtering, delay, and quantization.
+- Baseline sweep settings:
+  - latency sweep: `0..10` cycles
+  - quantization sweep: bit widths `[2, 3, 4, 5, 6, 8, 10, 12]`
+  - synthetic drift generation + estimator/control pipeline in `control.py` and `simulate_24h_drift.py`
+- These values are selected as baseline choices under FPGA latency/resource constraints and validated with sensitivity sweeps.
+- The drift model is a reduced-order profile covering observed platform scales (minutes-to-hours) before hardware-identified updates.
+- Reproducible outputs under `assets/<profile>/` via `scripts/onboard_from_raw.py`/`scripts/build_assets_profiles.py` one-flow, with `--target advisor`.
+  - reviewer-facing: `assets/web`
+  - publication-ready: `assets/paper`
+- Pipeline path: `fit -> simulated drift/plant -> feedback control` is executed as `measurement -> estimation -> control` in the closed-loop utility.
 
-Outputs: stable plots under `assets/` + a single script to regenerate them.
+### C) FPGA/HDL Nonlinear Feedforward
+- Fixed-point homodyne -> LUT/polynomial nonlinearity -> fixed-point control out
+- Explicit pipeline stages for measurable latency
+- Contracted FPGA interface:
+  - Input: signed Q1.15 sample stream, `in_valid`, `clk`, `rst_n`
+  - Output: signed Q1.15 control stream, `out_valid`
+  - Reference RTL latency: 2 cycles (`PIPELINE_LATENCY`)
+  - Golden vectors are regenerated reproducibly by `scripts/export_golden_vectors.py --manifest ...`
+- Verified by VCD + manifest-backed golden-vector checks
 
-### C) FPGA/HDL Nonlinear Feedforward Reference
-Implement a minimal HDL block:
-- Input: homodyne stream sample (fixed-point)
-- Core: LUT-based nonlinear mapping (or piecewise polynomial)
-- Output: drive value (fixed-point)
-- Explicit pipeline stages so cycle latency is measurable
+### D) Stability / Automation
+- 24h drift synthesis + EMA estimator (`alpha = 0.22` in the default profile) + adaptive coefficient update
+- Drift is evaluated on deterministic synthetic trajectories to test closed-loop recovery over platform-relevant time scales.
+- Output: `assets/<profile>/drift_recovery.png` (`assets/web/` for review profile, `assets/paper/` for publication profile)
 
-Verification: VCD waveform + golden-vector checks.
+### E) Data-to-control (roadmap)
+- `data/raw` -> `scripts/fit_lab_data.py` -> `scripts/build_assets_profiles.py`
+- standard onboarding path:
+  - `python scripts/onboard_from_raw.py --data-path data/raw --profile both --target advisor --verify`
 
-### D) Fault-tolerance / GKP Toy Model (logical proxy)
-Implement a minimal, explainable GKP-EC toy:
-- finite squeezing / shift-noise proxy
-- output: logical error proxy (or syndrome residual)
-- sweep: noise vs proxy (and optionally control quantization/latency effect)
-
-Output: at least one plot under `assets/`.
-
-### E) Stability / Automation (simulation-based)
-Implement a drift + auto-calibration loop:
-- drift generator (phase / loss / effective squeezing drift)
-- estimator (EMA/Kalman-like minimal)
-- controller update (recompute coefficients)
-- demonstrate recovery over long horizon (simulated “24h”)
-
-Output: plot under `assets/` + reproducible script.
-
-## 3) Non-goals (to keep it shippable)
-- No claims of matching a specific lab’s proprietary setup.
-- No full-scale cluster-state / full MBQC compiler required for MVP.
-- No real FPGA board integration in MVP (HDL sim + bit-accurate checks only).
-- No unstable “demo-only” code; everything must be reproducible.
+## 3) Non-goals
+- No full MBQC compiler, no board-level FPGA bring-up, and no demonstration-only code.
+- No full GKP encoder/decoder stack; no fault-tolerance encoding claims are part of MVP evidence.
 
 ## 4) Repo layout (target)
-- docs/
-  - PROJECT_SPEC.md (this file)
-  - EVIDENCE_PACK.md (generated summary of artifacts)
-  - ARCHITECTURE.md (1–2 pages, diagrams ok)
-- assets/ (generated artifacts, committed)
-  - sweep_latency.png
-  - sweep_quantization.png
-  - gkp_proxy.png
-  - drift_recovery.png
-- notebooks/ (repro notebooks)
-  - 01_tdm_minimal.ipynb
-  - 02_control_sweeps_explainer.ipynb (optional)
-  - 03_hdl_latency_demo.ipynb (optional)
-  - 04_gkp_ec_toy.ipynb
-  - 05_drift_auto_calibration.ipynb (optional)
-- scripts/ (single-command reproducibility)
-  - generate_control_sweeps.py
-  - export_golden_vectors.py
-  - simulate_24h_drift.py
-  - run_gkp_sweep.py
-- hdl/
-  - feedforward_lut.sv
-  - tb_feedforward_lut.sv
-  - Makefile (make sim -> VCD)
-  - waves.vcd (generated; can be gitignored, but provide command)
-- src/ (existing package; extend instead of duplicating)
+- `docs/`: `PROJECT_SPEC.md`, `EVIDENCE_PACK.md`, `ARCHITECTURE.md`
+- `data/raw/`: experiment CSV drops
+- `assets/`: profile-based generated artifacts
+  - `assets/web/...` for review artifacts (`sweep_latency.png`, `sweep_quantization.png`, `drift_recovery.png`)
+  - `assets/paper/...` for publication artifacts (same filenames in publication-safe rendering)
+- `scripts/`: `generate_control_sweeps.py`, `export_golden_vectors.py`, `simulate_24h_drift.py`
+- `hdl/`: `feedforward_lut.sv`, `tb_feedforward_lut.sv`, `Makefile`, `waves.vcd`
+- `src/`: extend existing package
 
-## 5) Definition of Done (DoD)
-A change is “done” only if:
-1) `make test` passes (or `pytest` if makefile does not exist).
-2) `make lint` passes (or equivalent formatter/linter command).
-3) `python scripts/generate_control_sweeps.py` regenerates `assets/sweep_*.png`.
-4) `make -C hdl sim` produces a VCD waveform and prints measured cycle latency.
-5) Every notebook runs top-to-bottom with no manual steps (document the command).
-6) `docs/EVIDENCE_PACK.md` lists:
-   - what was built
-   - how to reproduce
-   - which SOP/CV claim each artifact supports
+## 5) Definition of done
+1. `make test` / `pytest` passes
+2. `make lint` passes
+3. `python scripts/generate_control_sweeps.py` regenerates `assets/web/sweep_*.png` (review profile) and `assets/paper/sweep_*.png` (publication profile)
+4. `make -C hdl sim` generates VCD and prints cycle latency
+5. `python scripts/onboard_from_raw.py --profile both --target advisor --verify` aligns README core artifacts
+6. Figure scripts regenerate assets reproducibly
+7. `docs/EVIDENCE_PACK.md` includes Claim / Evidence / Limitation per artifact
 
-## 6) Evidence mapping (SOP/CV-ready)
-- GKP / fault tolerance:
-  - assets/gkp_proxy.png, notebooks/04_gkp_ec_toy.ipynb, scripts/run_gkp_sweep.py
-- Nonlinear feedforward / FPGA:
-  - hdl/feedforward_lut.sv, hdl/tb_feedforward_lut.sv, hdl/Makefile, VCD proof
-- Stability / automation:
-  - assets/drift_recovery.png, scripts/simulate_24h_drift.py
-- World modeling loop:
-  - docs/ARCHITECTURE.md (data→ID→update→deploy diagram)
-  - scripts/export_golden_vectors.py (deployment artifact generation)
-  - (optional) a small example dataset under data/examples/
+## 6) Evidence mapping
+| Claim | Evidence | Limitation |
+| --- | --- | --- |
+| Nonlinear feedforward / FPGA | `hdl/feedforward_lut.sv`, `hdl/tb_feedforward_lut.sv`, `hdl/Makefile`, `scripts/export_golden_vectors.py` (Q-format + manifest), `hdl/vectors/contract.json`, VCD waveform | HDL-only validation; no board-level bring-up |
+| Stability / automation | `assets/<profile>/drift_recovery.png`, `scripts/simulate_24h_drift.py` | Synthetic drift model only |
 
-## 7) Reproduce commands (must remain valid)
-- Python:
-  - pip install -e .
-  - make test
-  - python scripts/generate_control_sweeps.py
-- HDL:
-  - make -C hdl sim
+## 7) Reproduce commands
+- `pip install -e .`
+- `make test`
+- `python scripts/generate_control_sweeps.py`
+- `make -C hdl sim`
+
+

@@ -1,5 +1,11 @@
 # Baseline Audit Report (Phase 0)
 
+## Scope and authority
+
+- Archive note: this file is historical documentation only.  
+- Non-blocking for MVP acceptance; roadmap-only artifacts in this report should be treated as exploratory evidence.
+- This is a historical point-in-time report and is not a live defect list for current docs.
+
 Date: 2026-02-18
 
 Scope:

@@ -10,7 +10,11 @@ from .interface import calculate_squeezing
 from .multimode import run_multimode, MultiModeResult
 from .quantum import run_single_mode, QuantumResult
 from .estimation import fit_eta_and_loss
-from .control import simulate_phase_drift, apply_feedback_with_latency
+from .control import (
+    apply_feedback_with_latency,
+    run_measurement_to_control_pipeline,
+    simulate_phase_drift,
+)
 from .tdm_topology import (
     BeamSplitterCoupling,
     TDMTopologyConfig,
@@ -31,6 +35,7 @@ __all__ = [
     "fit_eta_and_loss",
     "simulate_phase_drift",
     "apply_feedback_with_latency",
+    "run_measurement_to_control_pipeline",
     "BeamSplitterCoupling",
     "TDMTopologyConfig",
     "TopologySimulationResult",

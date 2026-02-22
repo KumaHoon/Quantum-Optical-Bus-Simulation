@@ -1,0 +1,53 @@
+{
+  "args": [
+    "--output-dir=assets",
+    "--profile=web"
+  ],
+  "profile": "web",
+  "generator_args": [
+    "--output-dir=assets",
+    "--profile=web"
+  ],
+  "notes": [
+    "Sensitivity to fixed-point quantization in the phase-estimation loop."
+  ],
+  "units": {
+    "latency_key": "Latency [bins]",
+    "quantization_key": "Quantization [-]",
+    "rms_key": "RMS residual [rad]",
+    "retention_key": "Retention [unitless]",
+    "xlabel": "Quantizer bits",
+    "ylabel": "RMS residual phase error (rad)"
+  },
+  "style": {
+    "title_font_size": 18,
+    "axis_label_font_size": 15,
+    "tick_font_size": 13,
+    "legend_font_size": 12,
+    "annotation_font_size": 12,
+    "line_width": 2.0,
+    "marker_size": 6.0
+  },
+  "python_version": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "git_commit": "7ce7c7f9baaf66eab5af33def8d273400389354a",
+  "canvas_px": [
+    1600,
+    1000
+  ],
+  "figure_id": "sweep_quantization",
+  "dpi": 150,
+  "created_at_utc": "2026-02-22T05:44:36Z",
+  "labels": {
+    "title": "Quantization sweep",
+    "xlabel": "Quantizer bits",
+    "ylabel": "RMS residual phase error (rad)"
+  },
+  "generator_script": "scripts/generate_control_sweeps.py",
+  "seed": 11,
+  "extra": {
+    "args": [
+      "--output-dir=assets",
+      "--profile=web"
+    ]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "dpi": 150,
+  "python_version": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "labels": {
+    "title": "Calibration demo (intrinsic vs observed squeezing)",
+    "xlabel": "Pump power P [mW] / loss [dB]",
+    "ylabel": "Squeezing [dB] / variance [SNU]"
+  },
+  "args": [
+    "--output-dir=C:\\Users\\moroc\\OneDrive\\Desktop\\Grad_prep\\New folder\\proj\\assets\\web",
+    "--profile=web"
+  ],
+  "git_commit": "7ce7c7f9baaf66eab5af33def8d273400389354a",
+  "figure_id": "calibration_demo",
+  "generator_args": [
+    "--output-dir=C:\\Users\\moroc\\OneDrive\\Desktop\\Grad_prep\\New folder\\proj\\assets\\web",
+    "--profile=web"
+  ],
+  "canvas_px": [
+    1600,
+    1000
+  ],
+  "profile": "web",
+  "created_at_utc": "2026-02-22T06:34:03Z",
+  "notes": [
+    "Calibration demo validates intrinsic vs observed squeezing and monotonic loss behavior across pump and loss sweeps."
+  ],
+  "style": {
+    "title_font_size": 18,
+    "axis_label_font_size": 15,
+    "tick_font_size": 13,
+    "legend_font_size": 12,
+    "annotation_font_size": 12,
+    "line_width": 2.0,
+    "marker_size": 6.0
+  },
+  "generator_script": "scripts/generate_calibration_demo.py",
+  "units": {
+    "x": "mW/dB",
+    "y": "dB/SNU",
+    "time": "frame"
+  },
+  "seed": 11,
+  "extra": {
+    "args": [
+      "--output-dir=C:\\Users\\moroc\\OneDrive\\Desktop\\Grad_prep\\New folder\\proj\\assets\\web",
+      "--profile=web"
+    ]
+  }
+}

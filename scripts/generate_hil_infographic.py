@@ -11,6 +11,20 @@ import matplotlib.pyplot as plt
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 STYLE_PATH = ROOT_DIR / "src" / "quantum_optical_bus" / "viz_style_ieee.py"
+try:
+    from figstyle import (
+        apply_style,
+        canonical_canvas_inches,
+        canonical_dpi,
+        write_figure_meta,
+    )
+except ModuleNotFoundError:
+    from scripts.figstyle import (
+        apply_style,
+        canonical_canvas_inches,
+        canonical_dpi,
+        write_figure_meta,
+    )
 
 
 def _load_style_module():
@@ -40,6 +54,12 @@ DEFAULT_PDF = ROOT_DIR / "docs" / "figures" / "hil_expansion.pdf"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--profile",
+        default="web",
+        choices=("web", "paper"),
+        help="Rendering profile for style and metadata (default: web).",
+    )
     parser.add_argument(
         "--output-png",
         type=Path,
@@ -72,7 +92,7 @@ def _node(
         width,
         height,
         boxstyle="round,pad=0.04",
-        linewidth=1.1,
+        linewidth=1.0,
         edgecolor=color,
         facecolor=PANEL_COLOR,
     )
@@ -113,7 +133,7 @@ def _arrow(ax: plt.Axes, x0: float, y0: float, x1: float, y1: float, color: str)
         "",
         xy=(x1, y1),
         xytext=(x0, y0),
-        arrowprops=dict(arrowstyle="->", color=color, lw=1.4),
+        arrowprops=dict(arrowstyle="->", color=color, lw=1.2),
     )
 
 
@@ -233,21 +253,45 @@ def generate() -> plt.Figure:
     return fig
 
 
-def save_outputs(fig: plt.Figure, output_png: Path, output_pdf: Path) -> None:
+def save_outputs(fig: plt.Figure, output_png: Path, output_pdf: Path, profile: str) -> None:
     output_png.parent.mkdir(parents=True, exist_ok=True)
-    save_ieee(fig, output_png, dpi=300)
+    apply_style(profile, base_font_size=11, tick_font_size=9)
+    width_in, height_in = canonical_canvas_inches(profile)
+    fig.set_size_inches(width_in, height_in)
+    dpi = canonical_dpi(profile)
+    save_ieee(fig, output_png, dpi=dpi)
     try:
         output_pdf.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(output_pdf, dpi=300, bbox_inches="tight")
+        fig.savefig(output_pdf, dpi=dpi, bbox_inches="tight")
         print(f"[OK] Saved HIL infographic PDF: {output_pdf}")
     except Exception:
         print("[INFO] PDF export skipped.")
+    write_figure_meta(
+        output_png,
+        figure_id=output_png.stem,
+        profile=profile,
+        generator_script="scripts/generate_hil_infographic.py",
+        generator_args=(
+            f"--profile={profile}",
+            f"--output-png={output_png}",
+        ),
+        labels={
+            "title": "HIL expansion diagram",
+            "xlabel": "Position [-]",
+            "ylabel": "Lane [-]",
+        },
+        units={},
+        notes="High-level Hil architecture expansion diagram for development planning.",
+        seed=11,
+        dpi=dpi,
+        canvas_px=(int(round(width_in * dpi)), int(round(height_in * dpi))),
+    )
 
 
 def main() -> None:
     args = parse_args()
     fig = generate()
-    save_outputs(fig, args.output_png, args.output_pdf)
+    save_outputs(fig, args.output_png, args.output_pdf, args.profile)
     print(f"[OK] Saved HIL infographic PNG: {args.output_png}")
 
 

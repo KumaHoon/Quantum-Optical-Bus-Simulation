@@ -1,20 +1,27 @@
-﻿# Release Notes
+# Release Notes
+
+## Scope note
+
+- Archive note: this file is historical and non-authoritative for MVP acceptance.
+- Legacy/legacy-style gallery and evidence polish scripts are preserved for reproducibility, not reviewer gating.
 
 ## vNext (Phase 10 regeneration run)
 
 ### What changed
-- Regenerated all dashboard and evidence visual assets to align with the latest styling/layout updates.
-- Rebuilt the animated live-demo and gallery artifacts for current code state:
-  - `assets/dashboard_vacuum.png`
-  - `assets/dashboard_calibration.png`
-  - `assets/dashboard_decoherence.png`
-  - `assets/dashboard_multimode.png`
-  - `assets/dashboard_topology.png`
-  - `assets/dashboard_digital_twin.png`
-  - `assets/scenario_gallery.gif`
-  - `assets/advanced_gallery.gif`
-  - `assets/advanced_evidence.gif`
-  - `assets/calibration_demo.gif`
+- Regenerated dashboard and evidence visual artifacts.
+- Rebuilt:
+  - `assets/web/dashboard_vacuum.png`
+  - `assets/web/dashboard_calibration.png`
+  - `assets/web/dashboard_decoherence.png`
+  - `assets/web/dashboard_multimode.png`
+  - `assets/web/dashboard_topology.png`
+  - `assets/web/dashboard_digital_twin.png`
+  - `assets/paper/dashboard_*.png` (for `--profile both`)
+- `assets/web/calibration_demo.gif`
+- `assets/paper/calibration_demo.gif` (for `--profile both` publication output)
+- `assets/scenario_gallery.gif` (roadmap / optional)
+- `assets/advanced_gallery.gif` (roadmap / optional)
+- `assets/advanced_evidence.gif` (roadmap / optional)
 - Rebuilt HIL infographic artifacts:
   - `docs/figures/hil_expansion.png`
   - `docs/figures/hil_expansion.pdf`
@@ -22,14 +29,13 @@
 - i18n docs and reference/architecture updates remain synchronized with rendered assets.
 
 ### Reproduction
-From repository root:
-1. `python scripts/generate_dashboard_gallery.py`
-2. `python scripts/generate_advanced_dashboard_gallery.py`
-3. `python scripts/generate_calibration_demo.py`
-4. `python scripts/generate_scenario_gallery_gif.py`
-5. `python scripts/generate_advanced_gallery_gif.py`
-6. `python scripts/generate_advanced_evidence_gif.py`
-7. `python scripts/generate_hil_infographic.py`
+- `python scripts/generate_dashboard_gallery.py`
+- `python scripts/generate_advanced_dashboard_gallery.py`
+- `python scripts/generate_calibration_demo.py`
+- `python scripts/generate_scenario_gallery_gif.py`
+- `python scripts/generate_advanced_gallery_gif.py`
+- `python scripts/generate_advanced_evidence_gif.py`
+- `python scripts/generate_hil_infographic.py`
 
 ### Quality gates
 - `make lint` / `make test` were attempted but `make` is not installed in this environment.
@@ -46,4 +52,5 @@ From repository root:
 - `python -m pytest -q` passed: **38 passed, 0 failed**.
 
 ### Notes
-- `python scripts/generate_calibration_demo.py` required a longer runtime window due GIF frame generation and optimization. No functional changes were made during this run.
+- `python scripts/generate_calibration_demo.py` required longer runtime due to GIF frame generation and optimization.
+- This file is historical context and does not redefine MVP acceptance boundary.

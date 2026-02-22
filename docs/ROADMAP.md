@@ -2,6 +2,15 @@
 
 This roadmap defines phased milestones for the Quantum Optical Bus project.
 
+## Review scope note
+
+- Core reviewer evidence remains the README-linked path only.
+- Core path is fixed to the 3-item MVP evidence trio shown in `README.md`:
+  - `assets/web/calibration_demo.gif`
+  - `assets/web/dashboard_decoherence.png`
+  - `assets/web/sweep_latency.png` or `assets/web/sweep_quantization.png`
+- Route extensions (`APPENDIX_GKP.md`, advanced gallery artifacts, and future fault-tolerance routes) stay non-blocking for this cycle.
+
 ## P0 - Bootstrap and Reliability
 Scope:
 

@@ -1,7 +1,13 @@
 # Architecture Guide
 
-This document explains the architecture for the current codebase in terms of actual module
+This document explains the architecture of the current codebase in terms of module
 responsibilities and execution flow.
+It is positioned as a loop-based optical workflow scaffold for cross-platform transfer, where data assimilation and estimation feed FPGA-friendly control updates in a closed-loop deployment path.
+
+## Review-boundary note
+
+For README-focused review, core evidence is the control trio (`calibration_demo.gif`, `dashboard_decoherence.png`, one `sweep_*` output).
+Multi-mode, topology, digital-twin dashboard, and drift-recovery figures are roadmap-strengthening extensions.
 
 ## Orchestrator role
 
@@ -17,7 +23,7 @@ It:
   - topology runs,
   - digital twin fit and control sweep results.
 
-It does not own the physics math itself; it wires modules and visualization.
+It does not contain the physics model itself; it orchestrates module execution and visualization.
 
 ## Module-by-module map
 
@@ -144,6 +150,24 @@ Use in workflow:
 - Phase 1 "The Device" visualization in the dashboard.
 - **Current scope note**: this path is display/inference-oriented and does not yet close the mapping to `r` calibration in the live UI.
 
+### 7) FPGA contract boundary (deployment edge)
+
+The project keeps FPGA deployment risk narrow by defining a fixed contract:
+
+- Host side:
+  - derive model and control updates from `estimation.py` outputs
+  - quantize control values before dispatch
+- RTL side:
+  - `hdl/feedforward_lut.sv` expects signed Q1.15 input and returns signed Q1.15 output
+  - fixed latency is `PIPE_LATENCY = 2` cycles in the reference block
+- Evidence:
+  - `hdl/vectors/stimulus.mem`
+  - `hdl/vectors/expected.mem`
+  - `hdl/vectors/contract.json`
+  - `make -C hdl sim` (VCD + latency print)
+
+This lets the loop-based photonic stack evolve independently in the optics/sensor path while keeping the FPGA boundary explicitly testable.
+
 ## Data/flow summary (end-to-end)
 
 ```mermaid
@@ -168,15 +192,16 @@ flowchart TD
 
   UI --> Data["estimation.py fit_eta_and_loss"]
   UI --> Ctrl["control.py latency + drift"]
+  UI --> HdlContract["hdl/contract.json and vectors/*.mem (Q1.15)"]
+  HdlContract --> Feedforward[feedforward_lut.sv]
   Data --> UI
   Ctrl --> UI
-```
+``` 
 
 ## Placeholder and roadmap notes
 
-- Placeholder coupling coefficient $\eta$ in `interface.py` is source-level and tuned for demo behavior.
-- Hardware-to-mapping closure is not yet implemented from measured mode properties to squeezing gain.
-- Meep execution in `hardware.py` is currently a placeholder for a future calibrated flow.
+- Calibration coupling coefficient $\eta$ in `interface.py` is source-level and tuned for expected operating conditions in this MVP.
+- Hardware-to-mapping closure from measured mode properties to squeezing gain is not yet implemented.
+- `hardware.py` currently includes an exploratory path for future calibrated flows and a stable fallback path.
 - Topology and control modules are MVP simulations with future extensions for full timing/jitter and actuator hardware integration.
 - `calibration_app.py` includes display-focused and educational annotations intended as a white-box workflow.
-
