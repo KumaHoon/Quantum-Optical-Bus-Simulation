@@ -45,7 +45,7 @@ module feedforward_lut #(
         logic [DATA_WIDTH-1:0] abs_candidate;
         abs_candidate = sample_pipe[DATA_WIDTH-1] ? (~sample_pipe + 1'b1) : sample_pipe;
         if (abs_candidate > {1'b0, {DATA_WIDTH-1{1'b1}}}) begin
-            abs_candidate = {1'b0, {DATA_WIDTH-1{1'b1}};
+            abs_candidate = {1'b0, {DATA_WIDTH-1{1'b1}}};
         end
         abs_sample = abs_candidate[DATA_WIDTH-1:0];
         lut_addr = abs_sample[DATA_WIDTH-1 -: LUT_ADDR_BITS];
@@ -74,4 +74,3 @@ module feedforward_lut #(
     end
 
 endmodule
-

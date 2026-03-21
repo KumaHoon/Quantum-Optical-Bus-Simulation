@@ -178,7 +178,7 @@ flowchart LR
   UI --> Core[quantum_optical_bus<br/>Python package]
 
   Core --> SF[Strawberry Fields<br/>Gaussian backend]
-  Core -.->|optional| Meep[Meep (optional)]
+  Core -.->|optional| Meep["Meep (optional)"]
 
   Core --> UI
   Scripts[scripts/*] --> Assets[assets/web/* and assets/paper/* (PNG/GIF)]
@@ -209,7 +209,7 @@ flowchart TD
   Est --> Ctrl[control.py<br/>latency + drift]
   Ctrl --> UI
 
-  UI -.->|optional| HW[hardware.py<br/>Meep / analytic mock]
+  UI -.->|optional| HW["hardware.py<br/>Meep / analytic mock"]
   HW -.-> UI
 ```
 

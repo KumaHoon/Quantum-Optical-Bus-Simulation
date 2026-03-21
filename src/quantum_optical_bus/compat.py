@@ -1,9 +1,10 @@
-"""
-Compatibility patches for dependency issues.
+"""Compatibility shims for optional runtime dependencies.
 
 This module must be imported before any Strawberry Fields or Meep usage.
-It patches known issues with pkg_resources and scipy.integrate.simps
-in newer Python / SciPy versions.
+
+Only a stable fallback for ``pkg_resources`` is retained here.
+The project intentionally declares a supported SciPy range in ``pyproject.toml`` to
+avoid runtime monkey-patching for removed APIs (for example, ``scipy.integrate.simps``).
 """
 
 import sys
@@ -14,10 +15,3 @@ try:
     import pkg_resources  # noqa: F401
 except ImportError:
     sys.modules.setdefault("pkg_resources", MagicMock())
-
-# Patch 2: Fix scipy.integrate.simps removal (removed in SciPy 1.14+)
-import scipy.integrate
-
-if not hasattr(scipy.integrate, "simps"):
-    if hasattr(scipy.integrate, "simpson"):
-        scipy.integrate.simps = scipy.integrate.simpson

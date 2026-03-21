@@ -5,11 +5,11 @@ description = "Hybrid quantum-classical calibration dashboard for squeezed-light
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
-  "numpy",
-  "scipy",
-  "matplotlib",
-  "strawberryfields",
-  "streamlit",
+  "numpy>=1.24,<2",
+  "scipy>=1.11,<1.14",
+  "matplotlib>=3.8,<4",
+  "strawberryfields>=0.5,<1",
+  "streamlit>=1.34,<2",
 ]
 
 [project.optional-dependencies]
@@ -34,3 +34,8 @@ exclude = [".git", ".venv", "__pycache__", ".pytest_cache"]
 
 [tool.ruff.format]
 line-ending = "lf"
+
+[project.scripts]
+qobus-build = "quantum_optical_bus.cli:main_build"
+qobus-verify = "quantum_optical_bus.cli:main_verify"
+qobus = "quantum_optical_bus.cli:main"
