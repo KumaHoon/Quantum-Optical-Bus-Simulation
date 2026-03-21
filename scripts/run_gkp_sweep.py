@@ -21,6 +21,7 @@ from quantum_optical_bus.viz_style_ieee import (
     set_tab_title,
     save_ieee,
 )
+
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -74,9 +75,16 @@ def _resolve_output_targets(output_path: Path, profile: str) -> list[tuple[Path,
     if profile == "web":
         return [(output_path, "web")]
     if profile == "paper":
-        paper_root = output_path.parent / "paper" if output_path.parent.name != "paper" else output_path.parent
+        paper_root = (
+            output_path.parent / "paper"
+            if output_path.parent.name != "paper"
+            else output_path.parent
+        )
         return [(paper_root / output_path.name, "paper")]
-    return [(target, "web" if target.parent.name == "web" else "paper") for target in dict.fromkeys(resolve_outputs(output_path, profile))]
+    return [
+        (target, "web" if target.parent.name == "web" else "paper")
+        for target in dict.fromkeys(resolve_outputs(output_path, profile))
+    ]
 
 
 def run_gkp_sweep(
@@ -106,7 +114,9 @@ def run_gkp_sweep(
     base = output_path.parent
     for p in profiles:
         _apply_profile(p)
-        fig, axes = plt.subplots(1, 2, figsize=ieee_figsize(width_in=FIGURE_WIDTH_2COL_IN, aspect=0.56))
+        fig, axes = plt.subplots(
+            1, 2, figsize=ieee_figsize(width_in=FIGURE_WIDTH_2COL_IN, aspect=0.56)
+        )
 
         im = axes[0].pcolormesh(noise, squeezing, logical_error, shading="auto")
         axes[0].set_title("Noise and squeezing proxy", fontsize=8)
@@ -173,7 +183,10 @@ def run_gkp_sweep(
                 figure_id=target.stem,
                 profile=target_profile,
                 generator_script="scripts/run_gkp_sweep.py",
-                generator_args=(f"--output-dir={output_path.parent}", f"--profile={target_profile}"),
+                generator_args=(
+                    f"--output-dir={output_path.parent}",
+                    f"--profile={target_profile}",
+                ),
                 labels={
                     "title": "GKP toy proxy",
                     "xlabel": "Shift-noise std",
@@ -232,4 +245,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

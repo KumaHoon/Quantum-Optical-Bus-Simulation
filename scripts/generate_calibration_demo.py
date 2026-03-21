@@ -1,4 +1,4 @@
-﻿"""Generate a review-grade calibration live-demo GIF."""
+"""Generate a review-grade calibration live-demo GIF."""
 
 from __future__ import annotations
 
@@ -46,6 +46,7 @@ from quantum_optical_bus.viz_style_ieee import (
     compact_axis_formatter,
     set_tab_title,
 )
+
 try:
     from generate_prototypes import apply_prototype
 except ModuleNotFoundError:
@@ -450,9 +451,15 @@ def draw_calibration_panel(
     is_paper: bool = False,
 ) -> None:
     size_delta = 4.0 if is_paper else 0.0
-    title_size = max(7.0, float(plt.rcParams.get("axes.titlesize", AXIS_TITLE_FONT_SIZE)) - size_delta)
-    label_size = max(6.0, float(plt.rcParams.get("axes.labelsize", AXIS_LABEL_FONT_SIZE)) - size_delta)
-    tick_size = max(5.0, float(plt.rcParams.get("xtick.labelsize", AXIS_LABEL_FONT_SIZE)) - size_delta)
+    title_size = max(
+        7.0, float(plt.rcParams.get("axes.titlesize", AXIS_TITLE_FONT_SIZE)) - size_delta
+    )
+    label_size = max(
+        6.0, float(plt.rcParams.get("axes.labelsize", AXIS_LABEL_FONT_SIZE)) - size_delta
+    )
+    tick_size = max(
+        5.0, float(plt.rcParams.get("xtick.labelsize", AXIS_LABEL_FONT_SIZE)) - size_delta
+    )
     ax.set_title("Calibration curve", fontsize=title_size, color=TEXT_COLOR, pad=7)
     ax.set_facecolor(PANEL_COLOR)
     ax.set_xlim(0.0, 200.0)
@@ -487,6 +494,7 @@ def draw_calibration_panel(
         fontsize=label_size,
         color=AXIS_COLOR,
     )
+
 
 def draw_dashboard(
     ax: plt.Axes,
@@ -529,8 +537,12 @@ def draw_dashboard(
             alpha=0.14,
         )
     )
-    label_offset_pts = _points_for_pixels(ax.figure, label_shift_px) if ax.figure is not None else 0.0
-    value_offset_pts = _points_for_pixels(ax.figure, value_shift_px) if ax.figure is not None else 0.0
+    label_offset_pts = (
+        _points_for_pixels(ax.figure, label_shift_px) if ax.figure is not None else 0.0
+    )
+    value_offset_pts = (
+        _points_for_pixels(ax.figure, value_shift_px) if ax.figure is not None else 0.0
+    )
     ax.text(
         4.95,
         9.36,
@@ -572,18 +584,27 @@ def draw_dashboard(
     eta_color = INTRINSIC_COLOR if eta > 0.9 else OBSERVED_COLOR if eta > 0.5 else "#8b4b53"
     metrics_anchor_y = 0.30
     metrics_anchor_shift_px = -105.0
-    metrics_anchor_shift_pts = metrics_anchor_shift_px * 72.0 / float(
-        ax.figure.dpi if ax.figure and ax.figure.dpi else 72.0
+    metrics_anchor_shift_pts = (
+        metrics_anchor_shift_px
+        * 72.0
+        / float(ax.figure.dpi if ax.figure and ax.figure.dpi else 72.0)
     )
     label_font = metrics_label_font
     value_font = metrics_value_font
     row_gap_pts = 46.0 * 72.0 / float(ax.figure.dpi if ax.figure and ax.figure.dpi else 72.0)
-    value_x_shift_px = 0.0
 
     metrics_rows = [
         ("Squeezing parameter r (dimensionless)", f"{frame.r:.4f}", TEXT_COLOR),
-        ("INTRINSIC squeezing (pre-loss, dB)", f"{_format_db(frame.intrinsic_sq_db)} dB", INTRINSIC_COLOR),
-        ("OBSERVED squeezing (post-loss, dB)", f"{_format_db(max(frame.observed_sq_db, 0.0))} dB", OBSERVED_COLOR),
+        (
+            "INTRINSIC squeezing (pre-loss, dB)",
+            f"{_format_db(frame.intrinsic_sq_db)} dB",
+            INTRINSIC_COLOR,
+        ),
+        (
+            "OBSERVED squeezing (post-loss, dB)",
+            f"{_format_db(max(frame.observed_sq_db, 0.0))} dB",
+            OBSERVED_COLOR,
+        ),
         ("Channel transmissivity (η)", f"{eta:.4f}", eta_color),
     ]
 
@@ -628,9 +649,15 @@ def draw_wigner_panel(
     is_paper: bool = False,
 ) -> None:
     size_delta = 4.0 if is_paper else 0.0
-    label_size = max(6.0, float(plt.rcParams.get("axes.labelsize", AXIS_LABEL_FONT_SIZE)) - size_delta)
-    title_size = max(7.0, float(plt.rcParams.get("axes.titlesize", AXIS_TITLE_FONT_SIZE)) - size_delta)
-    tick_size = max(5.0, float(plt.rcParams.get("xtick.labelsize", AXIS_LABEL_FONT_SIZE)) - size_delta)
+    label_size = max(
+        6.0, float(plt.rcParams.get("axes.labelsize", AXIS_LABEL_FONT_SIZE)) - size_delta
+    )
+    title_size = max(
+        7.0, float(plt.rcParams.get("axes.titlesize", AXIS_TITLE_FONT_SIZE)) - size_delta
+    )
+    tick_size = max(
+        5.0, float(plt.rcParams.get("xtick.labelsize", AXIS_LABEL_FONT_SIZE)) - size_delta
+    )
     prev_cbar = getattr(ax, "_qob_wigner_colorbar", None)
     if prev_cbar is not None:
         try:
@@ -656,7 +683,6 @@ def draw_wigner_panel(
         antialiased=True,
         extend="both",
     )
-    theta = np.linspace(0.0, 2.0 * np.pi, 200)
     # Circle removed per review request
     ax.set_xlim(-5.0, 5.0)
     ax.set_ylim(-5.0, 5.0)

@@ -1,4 +1,4 @@
-﻿"""Generate IEEE-style advanced dashboard PNG artifacts for three workflows."""
+"""Generate IEEE-style advanced dashboard PNG artifacts for three workflows."""
 
 from __future__ import annotations
 
@@ -12,12 +12,10 @@ import numpy as np
 from quantum_optical_bus.viz_style_ieee import (
     AXIS_COLOR,
     AXIS_LABEL_FONT_SIZE,
-    AXIS_TITLE_FONT_SIZE,
     SMALL_FONT_SIZE,
     compact_axis_formatter,
     SERIES_BLUE,
     SERIES_ORANGE,
-    SERIES_PURPLE,
     SERIES_TEAL,
     apply_review_layout,
     ieee_figsize,
@@ -25,6 +23,7 @@ from quantum_optical_bus.viz_style_ieee import (
     set_tab_title,
     set_review_axis,
 )
+
 try:
     from figstyle import (
         apply_style,
@@ -250,7 +249,11 @@ def scenario_multimode(profile: str, output_dir: pathlib.Path) -> None:
         },
         notes="Multi-mode / time-bin scenario with observed squeezing and covariance-derived visual diagnostics.",
         data_payload={
-            "time_bin_index": np.asarray(result.time_bins if hasattr(result, "time_bins") else np.arange(len(result.observed_sq_db))),
+            "time_bin_index": np.asarray(
+                result.time_bins
+                if hasattr(result, "time_bins")
+                else np.arange(len(result.observed_sq_db))
+            ),
             "observed_sq_db": np.asarray(result.observed_sq_db),
             "observed_antisq_db": np.asarray(result.observed_antisq_db),
             "var_x": np.asarray(result.var_x),
@@ -571,5 +574,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

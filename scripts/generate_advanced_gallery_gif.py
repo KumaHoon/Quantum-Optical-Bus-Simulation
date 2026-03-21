@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from PIL import Image
+
 try:
     from figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
 except ModuleNotFoundError:
@@ -19,9 +20,19 @@ ASSETS_DIR = ROOT_DIR / "assets"
 DASHBOARD_SCRIPT = ROOT_DIR / "scripts" / "generate_advanced_dashboard_gallery.py"
 DEFAULT_OUTPUT = ASSETS_DIR / "advanced_gallery.gif"
 try:
-    from asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+    from asset_profile import (
+        PROFILE_OPTIONS,
+        candidate_output_paths,
+        normalize_profiles,
+        resolve_outputs,
+    )
 except ModuleNotFoundError:
-    from scripts.asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+    from scripts.asset_profile import (
+        PROFILE_OPTIONS,
+        candidate_output_paths,
+        normalize_profiles,
+        resolve_outputs,
+    )
 
 
 ADVANCED_IMAGES = (
@@ -112,9 +123,7 @@ def ensure_images_exist(base_dir: Path, profile: str) -> None:
     missing = [
         name
         for name in [name for _, name in ADVANCED_IMAGES]
-        if not (
-            any(candidate.exists() for candidate in candidate_output_paths(base_dir, name))
-        )
+        if not (any(candidate.exists() for candidate in candidate_output_paths(base_dir, name)))
     ]
     if not missing:
         return
@@ -148,9 +157,7 @@ def load_labeled_image(path: Path, target_width: int) -> Image.Image:
     return image
 
 
-def make_equal_canvas(
-    images: list[Image.Image], bg=(10, 18, 30, 255)
-) -> list[Image.Image]:
+def make_equal_canvas(images: list[Image.Image], bg=(10, 18, 30, 255)) -> list[Image.Image]:
     target_w = max(im.width for im in images)
     target_h = max(im.height for im in images)
     framed: list[Image.Image] = []
@@ -237,7 +244,9 @@ def optimize_and_save(
             notes="Cross-fade GIF for advanced dashboard scenarios.",
             seed=11,
             dpi=canonical_dpi(target_profile),
-            canvas_px=canvas_px if isinstance(canvas_px, tuple) else canonical_canvas_px(target_profile),
+            canvas_px=canvas_px
+            if isinstance(canvas_px, tuple)
+            else canonical_canvas_px(target_profile),
         )
         if config.save_mp4:
             save_mp4_if_available(out)
@@ -253,6 +262,7 @@ def save_mp4_if_available(gif_path: Path) -> None:
 
     try:
         import imageio.v2 as imageio
+
         with imageio.get_reader(gif_path) as reader:
             frames = [f for f in reader]
         if not frames:
@@ -271,10 +281,7 @@ def main() -> None:
     ensure_images_exist(args.output_dir, args.profile)
 
     advanced_images = _advanced_paths(args.output_dir)
-    raw_images = [
-        load_labeled_image(path, args.max_width)
-        for _, path in advanced_images
-    ]
+    raw_images = [load_labeled_image(path, args.max_width) for _, path in advanced_images]
     framed = make_equal_canvas(raw_images)
     config = RenderConfig(
         fps=args.fps,

@@ -78,11 +78,15 @@ def _check_required_png(path: Path, profile: str, strict_units: bool) -> int:
     width, height = _read_png_size(path)
     expected_w, expected_h = canonical_canvas_px(profile)
     if (width, height) != (expected_w, expected_h):
-        raise AssertionError(f"Size mismatch for {path}: {(width, height)} != {(expected_w, expected_h)}")
+        raise AssertionError(
+            f"Size mismatch for {path}: {(width, height)} != {(expected_w, expected_h)}"
+        )
 
     meta = _read_meta(path)
     if int(meta.get("dpi", -1)) != canonical_dpi(profile):
-        raise AssertionError(f"DPI mismatch for {path}: {meta.get('dpi')} != {canonical_dpi(profile)}")
+        raise AssertionError(
+            f"DPI mismatch for {path}: {meta.get('dpi')} != {canonical_dpi(profile)}"
+        )
     if tuple(meta.get("canvas_px", [])) != tuple(canonical_canvas_px(profile)):
         raise AssertionError(
             f"Metadata canvas mismatch for {path}: {meta.get('canvas_px')} != {canonical_canvas_px(profile)}"

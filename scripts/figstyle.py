@@ -24,13 +24,13 @@ except ModuleNotFoundError:
         canonical_dpi,
         write_figure_artifacts,
     )
-from quantum_optical_bus.viz_style_ieee import (
+from quantum_optical_bus.viz_style_ieee import (  # noqa: E402
     AXIS_LABEL_FONT_SIZE,
     AXIS_TITLE_FONT_SIZE,
     apply_paper_style,
     apply_web_style,
 )
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
 
 
 def apply_style(

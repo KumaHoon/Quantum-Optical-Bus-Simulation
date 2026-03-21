@@ -1,4 +1,4 @@
-﻿"""Shared IEEE-like Matplotlib styling helpers.
+"""Shared IEEE-like Matplotlib styling helpers.
 
 This module centralizes figure styling so scripts and app code stay visually
 consistent.
@@ -218,7 +218,9 @@ def apply_web_style(
 ) -> None:
     """Apply the dark web profile."""
 
-    apply_figstyle(profile="web", base_font_size=base_font_size, tick_font_size=tick_font_size, dpi=dpi)
+    apply_figstyle(
+        profile="web", base_font_size=base_font_size, tick_font_size=tick_font_size, dpi=dpi
+    )
 
 
 def apply_paper_style(
@@ -229,7 +231,9 @@ def apply_paper_style(
 ) -> None:
     """Apply the paper/print profile."""
 
-    apply_figstyle(profile="paper", base_font_size=base_font_size, tick_font_size=tick_font_size, dpi=dpi)
+    apply_figstyle(
+        profile="paper", base_font_size=base_font_size, tick_font_size=tick_font_size, dpi=dpi
+    )
 
 
 def ieee_figsize(
@@ -427,7 +431,9 @@ def set_review_axis(
         ax.set_xlabel(xlabel, fontsize=float(rcParams.get("axes.labelsize", AXIS_LABEL_FONT_SIZE)))
     if ylabel is not None:
         ax.set_ylabel(ylabel, fontsize=float(rcParams.get("axes.labelsize", AXIS_LABEL_FONT_SIZE)))
-    ax.tick_params(axis="both", pad=4, labelsize=float(rcParams.get("xtick.labelsize", TICK_FONT_SIZE)))
+    ax.tick_params(
+        axis="both", pad=4, labelsize=float(rcParams.get("xtick.labelsize", TICK_FONT_SIZE))
+    )
     if xtick_format is not None:
         ax.xaxis.set_major_formatter(FormatStrFormatter(xtick_format))
     if ytick_format is not None:
@@ -451,9 +457,7 @@ def compact_axis_tick_formatter(
     return f"{value:.{decimals}f}"
 
 
-def compact_axis_formatter(
-    *, decimals: int = 2, epsilon: float = 1e-9
-) -> FuncFormatter:
+def compact_axis_formatter(*, decimals: int = 2, epsilon: float = 1e-9) -> FuncFormatter:
     """Formatter used for axes where 0.00 should be shown as 0."""
 
     return FuncFormatter(

@@ -84,7 +84,9 @@ def resolve_target_figures(contract: Mapping[str, Any], target: str) -> list[str
         return [fid for fid in configured if fid in core] if configured else core
     if configured:
         return configured
-    return [fig["id"] for fig in contract.get("figures", []) if isinstance(fig, Mapping) and "id" in fig]
+    return [
+        fig["id"] for fig in contract.get("figures", []) if isinstance(fig, Mapping) and "id" in fig
+    ]
 
 
 def _resolve_root_path(contract_path: str | Path, output_root: Path) -> Path:
@@ -127,7 +129,9 @@ def _load_npz(path: Path) -> dict[str, np.ndarray]:
         return {k: np.asarray(v) for k, v in data.items()}
 
 
-def _validate_outputs(figure_id: str, profile: str, outputs: Mapping[str, Any], output_root: Path) -> list[ValidationResult]:
+def _validate_outputs(
+    figure_id: str, profile: str, outputs: Mapping[str, Any], output_root: Path
+) -> list[ValidationResult]:
     results: list[ValidationResult] = []
     key_map = {
         "web": ("web_png", "web_pdf", "web_gif"),
@@ -139,7 +143,15 @@ def _validate_outputs(figure_id: str, profile: str, outputs: Mapping[str, Any], 
         path = _resolve_root_path(outputs[key], output_root)
         if not path.exists():
             results.append(
-                ValidationResult(False, "VAL001", figure_id, profile, "outputs_exist", "missing output", {"path": str(path)})
+                ValidationResult(
+                    False,
+                    "VAL001",
+                    figure_id,
+                    profile,
+                    "outputs_exist",
+                    "missing output",
+                    {"path": str(path)},
+                )
             )
     return results
 
@@ -264,12 +276,18 @@ def _validate_meta_schema(
     return []
 
 
-def no_nan_inf(figure_id: str, profile: str, npz: Mapping[str, np.ndarray], keys: Sequence[str], **_) -> list[ValidationResult]:
+def no_nan_inf(
+    figure_id: str, profile: str, npz: Mapping[str, np.ndarray], keys: Sequence[str], **_
+) -> list[ValidationResult]:
     results = []
     for k in keys:
         resolved = _get_key(npz, k)
         if resolved is None:
-            results.append(ValidationResult(False, "VAL101", figure_id, profile, "no_nan_inf", "missing key", {"key": k}))
+            results.append(
+                ValidationResult(
+                    False, "VAL101", figure_id, profile, "no_nan_inf", "missing key", {"key": k}
+                )
+            )
             continue
         arr = np.asarray(npz[resolved], dtype=float)
         mask = ~np.isfinite(arr)
@@ -343,7 +361,17 @@ def probability_distribution(
 ) -> list[ValidationResult]:
     kp = _get_key(npz, p_key)
     if kp is None:
-        return [ValidationResult(False, "VAL101", figure_id, profile, "probability_distribution", "missing key", {"key": p_key})]
+        return [
+            ValidationResult(
+                False,
+                "VAL101",
+                figure_id,
+                profile,
+                "probability_distribution",
+                "missing key",
+                {"key": p_key},
+            )
+        ]
     p = np.asarray(npz[kp], dtype=float)
     if require_nonnegative and np.nanmin(p) < -1e-12:
         return [
@@ -394,7 +422,12 @@ def loss_monotonic_observed(
                 profile,
                 "loss_monotonic_observed",
                 "missing key",
-                {"missing": [loss_key if kl is None else None, observed_sq_key if ko is None else None]},
+                {
+                    "missing": [
+                        loss_key if kl is None else None,
+                        observed_sq_key if ko is None else None,
+                    ]
+                },
             )
         ]
     loss = np.asarray(npz[kl], dtype=float)
@@ -442,7 +475,12 @@ def intrinsic_ge_observed(
                 profile,
                 "intrinsic_ge_observed",
                 "missing key",
-                {"missing": [intrinsic_sq_key if kin is None else None, observed_sq_key if ko is None else None]},
+                {
+                    "missing": [
+                        intrinsic_sq_key if kin is None else None,
+                        observed_sq_key if ko is None else None,
+                    ]
+                },
             )
         ]
     intrinsic = np.abs(np.asarray(npz[kin], dtype=float))
@@ -458,7 +496,11 @@ def intrinsic_ge_observed(
                 profile,
                 "intrinsic_ge_observed",
                 "intrinsic weaker than observed",
-                {"index": i, "intrinsic": float(intrinsic.flat[i]), "observed": float(observed.flat[i])},
+                {
+                    "index": i,
+                    "intrinsic": float(intrinsic.flat[i]),
+                    "observed": float(observed.flat[i]),
+                },
             )
         ]
     return []
@@ -469,7 +511,11 @@ def integer_axis(
 ) -> list[ValidationResult]:
     k = _get_key(npz, axis)
     if k is None:
-        return [ValidationResult(False, "VAL101", figure_id, profile, "integer_axis", "missing key", {"key": axis})]
+        return [
+            ValidationResult(
+                False, "VAL101", figure_id, profile, "integer_axis", "missing key", {"key": axis}
+            )
+        ]
     x = np.asarray(npz[k], dtype=float)
     max_err = float(np.nanmax(np.abs(x - np.round(x))))
     if max_err > tol:
@@ -493,13 +539,37 @@ def matrix_symmetric(
 ) -> list[ValidationResult]:
     k = _get_key(npz, key)
     if k is None:
-        return [ValidationResult(False, "VAL101", figure_id, profile, "matrix_symmetric", "missing key", {"key": key})]
+        return [
+            ValidationResult(
+                False, "VAL101", figure_id, profile, "matrix_symmetric", "missing key", {"key": key}
+            )
+        ]
     a = np.asarray(npz[k], dtype=float)
     if a.ndim != 2 or a.shape[0] != a.shape[1]:
-        return [ValidationResult(False, "VAL160", figure_id, profile, "matrix_symmetric", "not square", {"shape": list(a.shape)})]
+        return [
+            ValidationResult(
+                False,
+                "VAL160",
+                figure_id,
+                profile,
+                "matrix_symmetric",
+                "not square",
+                {"shape": list(a.shape)},
+            )
+        ]
     err = float(np.nanmax(np.abs(a - a.T)))
     if err > tol:
-        return [ValidationResult(False, "VAL161", figure_id, profile, "matrix_symmetric", "asymmetry", {"max_err": err, "tol": tol})]
+        return [
+            ValidationResult(
+                False,
+                "VAL161",
+                figure_id,
+                profile,
+                "matrix_symmetric",
+                "asymmetry",
+                {"max_err": err, "tol": tol},
+            )
+        ]
     return []
 
 
@@ -509,7 +579,15 @@ def corr_diagonal_one(
     k = _get_key(npz, key)
     if k is None:
         return [
-            ValidationResult(False, "VAL101", figure_id, profile, "corr_diagonal_one", "missing key", {"key": key})
+            ValidationResult(
+                False,
+                "VAL101",
+                figure_id,
+                profile,
+                "corr_diagonal_one",
+                "missing key",
+                {"key": key},
+            )
         ]
     a = np.asarray(npz[k], dtype=float)
     d = np.diag(a)
@@ -542,7 +620,17 @@ def fit_reasonable_range(
 ) -> list[ValidationResult]:
     k = _get_key(npz, eta_key)
     if k is None:
-        return [ValidationResult(False, "VAL101", figure_id, profile, "fit_reasonable_range", "missing key", {"key": eta_key})]
+        return [
+            ValidationResult(
+                False,
+                "VAL101",
+                figure_id,
+                profile,
+                "fit_reasonable_range",
+                "missing key",
+                {"key": eta_key},
+            )
+        ]
     v = np.asarray(npz[k], dtype=float)
     mn = float(np.nanmin(v))
     mx = float(np.nanmax(v))
@@ -653,7 +741,17 @@ def recovery_target(
     t = np.asarray(npz[kt], dtype=float)
     e = np.asarray(npz[km], dtype=float)
     if t.ndim != 1 or e.ndim != 1 or len(t) != len(e) or len(t) == 0:
-        return [ValidationResult(False, "VAL200", figure_id, profile, "recovery_target", "shape mismatch", {"len_time": len(t), "len_metric": len(e)})]
+        return [
+            ValidationResult(
+                False,
+                "VAL200",
+                figure_id,
+                profile,
+                "recovery_target",
+                "shape mismatch",
+                {"len_time": len(t), "len_metric": len(e)},
+            )
+        ]
     idx = int(np.argmin(np.abs(t - target_time_h)))
     head = int(max(1, 0.05 * len(e)))
     start = float(np.median(e[:head]))
@@ -700,11 +798,26 @@ def recovery_target(
 
 
 def gif_multiframe(
-    figure_id: str, profile: str, _npz: Mapping[str, np.ndarray], web_gif: str, min_frames: int = 2, **_
+    figure_id: str,
+    profile: str,
+    _npz: Mapping[str, np.ndarray],
+    web_gif: str,
+    min_frames: int = 2,
+    **_,
 ) -> list[ValidationResult]:
     path = Path(web_gif)
     if not path.exists():
-        return [ValidationResult(False, "VAL210", figure_id, profile, "gif_multiframe", "missing gif", {"path": str(path)})]
+        return [
+            ValidationResult(
+                False,
+                "VAL210",
+                figure_id,
+                profile,
+                "gif_multiframe",
+                "missing gif",
+                {"path": str(path)},
+            )
+        ]
     with Image.open(path) as im:
         frames = int(getattr(im, "n_frames", 1))
     if frames < min_frames:
@@ -749,7 +862,15 @@ def _run_validator(
     handler = HANDLERS.get(validator)
     if handler is None:
         return [
-            ValidationResult(False, "VAL999", figure_id, profile, validator, "unknown validator", {"validator": validator})
+            ValidationResult(
+                False,
+                "VAL999",
+                figure_id,
+                profile,
+                validator,
+                "unknown validator",
+                {"validator": validator},
+            )
         ]
     if validator == "gif_multiframe":
         return handler(
@@ -775,7 +896,15 @@ def verify_figure(
     figure_map = {f["id"]: f for f in contract.get("figures", []) if isinstance(f, Mapping)}
     if figure_id not in figure_map:
         return [
-            ValidationResult(False, "VAL999", figure_id, profile, "target_resolution", "figure missing", {"figure_id": figure_id})
+            ValidationResult(
+                False,
+                "VAL999",
+                figure_id,
+                profile,
+                "target_resolution",
+                "figure missing",
+                {"figure_id": figure_id},
+            )
         ]
 
     fig = figure_map[figure_id]
@@ -789,8 +918,12 @@ def verify_figure(
     if any(not r.ok for r in results):
         return results
 
-    needs_npz = any(v.get("type") != "gif_multiframe" for v in validations if isinstance(v, Mapping))
-    c_results, meta_path, npz_path = _validate_companions(figure_id, profile, companions, output_root, needs_npz)
+    needs_npz = any(
+        v.get("type") != "gif_multiframe" for v in validations if isinstance(v, Mapping)
+    )
+    c_results, meta_path, npz_path = _validate_companions(
+        figure_id, profile, companions, output_root, needs_npz
+    )
     results.extend(c_results)
     if meta_path is None or not meta_path.exists():
         return results
@@ -827,13 +960,18 @@ def verify_profile(
     profiles = normalize_profiles(profile)
     for p in profiles:
         for fid in figure_ids:
-            figure_results = verify_figure(fid, p, contract=contract, contract_path=contract_path, output_root=output_root)
+            figure_results = verify_figure(
+                fid, p, contract=contract, contract_path=contract_path, output_root=output_root
+            )
             results.extend(figure_results)
             if strict and any(not r.ok for r in figure_results):
                 break
         if strict and any(not r.ok for r in results):
             break
-    summary = {"passed": sum(1 for r in results if r.ok), "failed": sum(1 for r in results if not r.ok)}
+    summary = {
+        "passed": sum(1 for r in results if r.ok),
+        "failed": sum(1 for r in results if not r.ok),
+    }
     return VerificationReport(ok=summary["failed"] == 0, results=results, summary=summary)
 
 

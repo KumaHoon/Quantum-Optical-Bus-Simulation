@@ -58,9 +58,7 @@ def _line_failures(file: Path, line: str, line_num: int, index_offset: int) -> l
     if line.startswith("```mermaid"):
         # mermaid header should be on its own clean line (space after backticks not required here but valid)
         if line.strip() != "```mermaid":
-            failures.append(
-                Failure(file, line_num, "mermaid fence must be exactly ```mermaid")
-            )
+            failures.append(Failure(file, line_num, "mermaid fence must be exactly ```mermaid"))
 
     # Guard fragile KaTeX/LaTeX math patterns that can break on underscore.
     if re.search(r"\\text\{[^}]*_[^}]*\}", line):
@@ -117,7 +115,7 @@ def _image_or_anchor_failures(lines: list[str], file: Path) -> list[Failure]:
         if in_code:
             continue
 
-        if "<p align=\"center\">" in line:
+        if '<p align="center">' in line:
             prev = lines[i - 2].strip() if i - 2 >= 0 else ""
             if prev != "":
                 failures.append(
@@ -131,7 +129,7 @@ def _image_or_anchor_failures(lines: list[str], file: Path) -> list[Failure]:
                     break
                 j += 1
             if j >= len(lines):
-                failures.append(Failure(file, i, "unclosed <p align=\"center\"> block"))
+                failures.append(Failure(file, i, 'unclosed <p align="center"> block'))
             else:
                 next_line = lines[j + 1].strip() if j + 1 < len(lines) else ""
                 if next_line != "":
@@ -140,13 +138,15 @@ def _image_or_anchor_failures(lines: list[str], file: Path) -> list[Failure]:
                     )
 
         for is_img, target, col in _parse_links(line):
-            if target.startswith("assets/") or target.startswith("../assets/") or target.startswith("./assets/"):
+            if (
+                target.startswith("assets/")
+                or target.startswith("../assets/")
+                or target.startswith("./assets/")
+            ):
                 cleaned, _ = urldefrag(target)
                 candidate = (file.parent / cleaned).resolve()
                 if not candidate.exists():
-                    failures.append(
-                        Failure(file, i, f"missing linked file: {cleaned} (col {col})")
-                    )
+                    failures.append(Failure(file, i, f"missing linked file: {cleaned} (col {col})"))
                 continue
 
             # markdown crosslinks and local files
@@ -157,9 +157,7 @@ def _image_or_anchor_failures(lines: list[str], file: Path) -> list[Failure]:
                 cleaned, _ = urldefrag(target)
                 candidate = (file.parent / cleaned).resolve()
                 if not candidate.exists():
-                    failures.append(
-                        Failure(file, i, f"missing linked file: {cleaned} (col {col})")
-                    )
+                    failures.append(Failure(file, i, f"missing linked file: {cleaned} (col {col})"))
                 continue
 
             if target.endswith(".md"):
@@ -224,9 +222,7 @@ def _mermaid_failures(lines: list[str], file: Path) -> list[Failure]:
             continue
 
         if in_mermaid and line.startswith("```") and line != "```":
-            failures.append(
-                Failure(file, i + 1, "unexpected fenced block inside mermaid block")
-            )
+            failures.append(Failure(file, i + 1, "unexpected fenced block inside mermaid block"))
 
         i += 1
 

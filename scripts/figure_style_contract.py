@@ -8,7 +8,7 @@ from dataclasses import asdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 
@@ -200,11 +200,15 @@ def write_figure_artifacts(
         payload_dict["extra"] = dict(payload_extra)
 
     # Ensure all required keys exist even when optional fields are empty.
-    payload_dict = {k: payload_dict.get(k) for k in REQUIRED_META_KEYS} | {
-        "created_at_utc": payload_dict["created_at_utc"],
-        "seed": payload_dict["seed"],
-        "python_version": payload_dict["python_version"],
-    } | ({"extra": payload_dict.get("extra", {})} if "extra" in payload_dict else {})
+    payload_dict = (
+        {k: payload_dict.get(k) for k in REQUIRED_META_KEYS}
+        | {
+            "created_at_utc": payload_dict["created_at_utc"],
+            "seed": payload_dict["seed"],
+            "python_version": payload_dict["python_version"],
+        }
+        | ({"extra": payload_dict.get("extra", {})} if "extra" in payload_dict else {})
+    )
 
     target_meta = _meta_path(figure_path)
     target_meta.parent.mkdir(parents=True, exist_ok=True)

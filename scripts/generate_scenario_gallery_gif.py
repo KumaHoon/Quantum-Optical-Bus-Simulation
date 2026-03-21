@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from PIL import Image
+
 try:
     from figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
 except ModuleNotFoundError:
@@ -20,9 +21,19 @@ ASSETS_DIR = ROOT_DIR / "assets"
 DASHBOARD_SCRIPT = ROOT_DIR / "scripts" / "generate_dashboard_gallery.py"
 DEFAULT_OUTPUT = ASSETS_DIR / "scenario_gallery.gif"
 try:
-    from asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+    from asset_profile import (
+        PROFILE_OPTIONS,
+        candidate_output_paths,
+        normalize_profiles,
+        resolve_outputs,
+    )
 except ModuleNotFoundError:
-    from scripts.asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+    from scripts.asset_profile import (
+        PROFILE_OPTIONS,
+        candidate_output_paths,
+        normalize_profiles,
+        resolve_outputs,
+    )
 
 
 SCENARIO_IMAGES = (
@@ -113,9 +124,7 @@ def ensure_images_exist(base_dir: Path, profile: str) -> None:
     missing = [
         name
         for name in [name for _, name in SCENARIO_IMAGES]
-        if not (
-            any(candidate.exists() for candidate in candidate_output_paths(base_dir, name))
-        )
+        if not (any(candidate.exists() for candidate in candidate_output_paths(base_dir, name)))
     ]
     if not missing:
         return
@@ -239,7 +248,9 @@ def optimize_and_save(
             notes="Cross-fade GIF of vacuum/calibration/decoherence dashboard snapshots.",
             seed=11,
             dpi=canonical_dpi(target_profile),
-            canvas_px=canvas_px if isinstance(canvas_px, tuple) else canonical_canvas_px(target_profile),
+            canvas_px=canvas_px
+            if isinstance(canvas_px, tuple)
+            else canonical_canvas_px(target_profile),
         )
         if config.save_mp4:
             save_mp4_if_available(target)
@@ -278,10 +289,7 @@ def main() -> None:
     ensure_images_exist(args.output_dir, args.profile)
 
     scenario_images = _scenario_paths(args.output_dir)
-    raw_images = [
-        load_labeled_image(path, args.max_width)
-        for _, path in scenario_images
-    ]
+    raw_images = [load_labeled_image(path, args.max_width) for _, path in scenario_images]
     framed = make_equal_canvas(raw_images)
     config = RenderConfig(
         fps=args.fps,

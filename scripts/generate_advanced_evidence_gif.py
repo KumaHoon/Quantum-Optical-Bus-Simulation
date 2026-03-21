@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+
 try:
     from figstyle import canonical_canvas_px, canonical_dpi, write_figure_meta
 except ModuleNotFoundError:
@@ -17,9 +18,19 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 ASSETS_DIR = ROOT_DIR / "assets"
 DEFAULT_OUTPUT = ASSETS_DIR / "advanced_evidence.gif"
 try:
-    from asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+    from asset_profile import (
+        PROFILE_OPTIONS,
+        candidate_output_paths,
+        normalize_profiles,
+        resolve_outputs,
+    )
 except ModuleNotFoundError:
-    from scripts.asset_profile import PROFILE_OPTIONS, candidate_output_paths, normalize_profiles, resolve_outputs
+    from scripts.asset_profile import (
+        PROFILE_OPTIONS,
+        candidate_output_paths,
+        normalize_profiles,
+        resolve_outputs,
+    )
 
 EVIDENCE_IMAGES = (
     ("Evidence 1: Calibration latency", "sweep_latency.png"),
@@ -106,9 +117,7 @@ def ensure_evidence_images(base_dir: Path) -> None:
     missing = [
         name
         for name in [name for _, name in EVIDENCE_IMAGES]
-        if not (
-            any(candidate.exists() for candidate in candidate_output_paths(base_dir, name))
-        )
+        if not (any(candidate.exists() for candidate in candidate_output_paths(base_dir, name)))
     ]
     if not missing:
         return
@@ -282,7 +291,9 @@ def optimize_and_save(
             notes="Compact GIF showing sweep evidence and roadmap artifacts.",
             seed=11,
             dpi=canonical_dpi(target_profile),
-            canvas_px=canvas_px if isinstance(canvas_px, tuple) else canonical_canvas_px(target_profile),
+            canvas_px=canvas_px
+            if isinstance(canvas_px, tuple)
+            else canonical_canvas_px(target_profile),
         )
 
 

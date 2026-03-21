@@ -22,6 +22,7 @@ from quantum_optical_bus.viz_style_ieee import (
     set_review_axis,
     save_ieee,
 )
+
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -222,9 +223,17 @@ def _resolve_output_targets(output_path: Path, profile: str) -> list[tuple[Path,
     if profile == "web":
         return [(output_path, "web")]
     if profile == "paper":
-        paper_root = output_path.parent / "paper" if output_path.parent.name != "paper" else output_path.parent
+        paper_root = (
+            output_path.parent / "paper"
+            if output_path.parent.name != "paper"
+            else output_path.parent
+        )
         return [(paper_root / output_path.name, "paper")]
-    return [(target, "web" if target.parent.name == "web" else "paper") for target in dict.fromkeys(resolve_outputs(output_path, profile))]
+    return [
+        (target, "web" if target.parent.name == "web" else "paper")
+        for target in dict.fromkeys(resolve_outputs(output_path, profile))
+    ]
+
 
 def plot_recovery(
     trace: RecoveryTrace,
@@ -233,7 +242,7 @@ def plot_recovery(
     profile: str = "web",
     seed: int = 17,
 ) -> None:
-    target_dpi = apply_style(
+    apply_style(
         profile,
         base_font_size=11 if profile == "paper" else 10,
         tick_font_size=10 if profile == "paper" else 9,
@@ -284,12 +293,18 @@ def plot_recovery(
         color=SERIES_ORANGE,
         label="squeezing (dB)",
     )
-    ax_loss.set_ylim(np.min([np.min(trace.loss_db), np.min(trace.squeezing_db)]) - 0.2,
-                    np.max([np.max(trace.loss_db), np.max(trace.squeezing_db)]) + 0.2)
+    ax_loss.set_ylim(
+        np.min([np.min(trace.loss_db), np.min(trace.squeezing_db)]) - 0.2,
+        np.max([np.max(trace.loss_db), np.max(trace.squeezing_db)]) + 0.2,
+    )
 
-    ax_loss.set_yticks(np.linspace(np.floor(ax_loss.get_ylim()[0] * 10) / 10,
-                                    np.ceil(ax_loss.get_ylim()[1] * 10) / 10,
-                                    num=6))
+    ax_loss.set_yticks(
+        np.linspace(
+            np.floor(ax_loss.get_ylim()[0] * 10) / 10,
+            np.ceil(ax_loss.get_ylim()[1] * 10) / 10,
+            num=6,
+        )
+    )
     set_review_axis(
         ax_loss,
         title="Recovered drift, measured loss/squeezing, adaptive gain",
@@ -455,4 +470,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

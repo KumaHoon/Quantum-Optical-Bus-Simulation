@@ -78,7 +78,9 @@ def main() -> None:
         if not report.ok and not report.results:
             all_failures = True
         if report.ok:
-            print(f"[OK] {profile}: all checks passed ({report.summary.get('passed', 0)} ok, {report.summary.get('failed', 0)} failed)")
+            print(
+                f"[OK] {profile}: all checks passed ({report.summary.get('passed', 0)} ok, {report.summary.get('failed', 0)} failed)"
+            )
 
     if all_failures:
         raise SystemExit(1)

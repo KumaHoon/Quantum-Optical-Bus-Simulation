@@ -30,7 +30,9 @@ def _collect_inputs(paths: list[Path]) -> list[Path]:
             raise ValueError(f"Unsupported input path for onboarding: {p}")
 
     if not inputs:
-        raise FileNotFoundError("No CSV files found for onboarding. Provide data/*.csv in --data-path.")
+        raise FileNotFoundError(
+            "No CSV files found for onboarding. Provide data/*.csv in --data-path."
+        )
 
     return inputs
 

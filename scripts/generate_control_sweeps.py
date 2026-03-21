@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
 from quantum_optical_bus.viz_style_ieee import (
-    apply_review_layout,
     AXIS_LABEL_FONT_SIZE,
     SMALL_FONT_SIZE,
     SERIES_BLUE,
@@ -24,6 +23,7 @@ from quantum_optical_bus.viz_style_ieee import (
     set_review_axis,
     save_ieee,
 )
+
 _ROOT_DIR = pathlib.Path(__file__).resolve().parents[1]
 if str(_ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_DIR))
@@ -50,10 +50,12 @@ if str(_SRC) not in sys.path:
 
 import quantum_optical_bus.compat  # noqa: F401
 from quantum_optical_bus.control import apply_feedback_with_latency, simulate_phase_drift
+
 try:
     from asset_profile import PROFILE_OPTIONS, normalize_profiles, resolve_outputs
 except ModuleNotFoundError:
     from scripts.asset_profile import PROFILE_OPTIONS, normalize_profiles, resolve_outputs
+
 
 @dataclass(frozen=True)
 class SweepResult:
@@ -238,19 +240,26 @@ def _plot_latency_curve(
 
     # Force 15x9 so layout maps 1:1 mathematically
     fig = plt.figure(figsize=(15.0, 9.0), dpi=100)
-    
+
     try:
         from generate_prototypes import apply_prototype
     except ModuleNotFoundError:
         from scripts.generate_prototypes import apply_prototype
-        
+
     title = "Latency sweep"
     footnote = (
         "Latency Evaluation Scenario | Profiling end-to-end processing delays\n"
         "| Model: additive phase drift with EMA estimator | Review goal: compare residual vs retention\n"
         "Includes client request overhead, hardware execution execution limits, and readout digitization delays."
     )
-    boxes = apply_prototype(fig, "sweep_latency", profile, custom_title=title, custom_footnote=footnote, hide_layout=True)
+    boxes = apply_prototype(
+        fig,
+        "sweep_latency",
+        profile,
+        custom_title=title,
+        custom_footnote=footnote,
+        hide_layout=True,
+    )
     ax = fig.add_axes(boxes["Latency Performance"])
     (line_rms,) = ax.plot(
         latencies,
@@ -340,19 +349,26 @@ def _plot_quantization_curve(
 
     # Force 15x9 so layout maps 1:1 mathematically
     fig = plt.figure(figsize=(15.0, 9.0), dpi=100)
-    
+
     try:
         from generate_prototypes import apply_prototype
     except ModuleNotFoundError:
         from scripts.generate_prototypes import apply_prototype
-        
+
     title = "Quantization sweep"
     footnote = (
         "Quantization Sweep Scenario | Evaluating bit-depth resolution impact\n"
         "| Model: scalar quantization in phase estimation loop | Review goal: quantization impacts loop performance\n"
         "Compares theoretical squeezing bounds against empirical discretization errors from hardware ADCs."
     )
-    boxes = apply_prototype(fig, "sweep_quantization", profile, custom_title=title, custom_footnote=footnote, hide_layout=True)
+    boxes = apply_prototype(
+        fig,
+        "sweep_quantization",
+        profile,
+        custom_title=title,
+        custom_footnote=footnote,
+        hide_layout=True,
+    )
     ax = fig.add_axes(boxes["Quantization Errors"])
     (line_rms,) = ax.plot(
         bits,
@@ -418,9 +434,7 @@ def _plot_quantization_curve(
             title="Quantization sweep",
             xlabel="Quantizer bits",
             ylabel="RMS residual phase error (rad)",
-            notes=(
-                "Sensitivity to fixed-point quantization in the phase-estimation loop."
-            ),
+            notes=("Sensitivity to fixed-point quantization in the phase-estimation loop."),
             data_payload={
                 "quantization_step": bits,
                 "quantizer_bits": bits,
@@ -470,7 +484,10 @@ def generate_control_sweeps(
 
     outputs: dict[str, Path] = {}
     for p in profiles:
-        for key, name in (("sweep_latency", "sweep_latency.png"), ("sweep_quantization", "sweep_quantization.png")):
+        for key, name in (
+            ("sweep_latency", "sweep_latency.png"),
+            ("sweep_quantization", "sweep_quantization.png"),
+        ):
             for path in _resolve_figure_paths(output_dir, name, p):
                 outputs[key] = path
     return outputs
@@ -513,4 +530,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

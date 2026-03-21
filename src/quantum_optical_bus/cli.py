@@ -43,8 +43,7 @@ def _add_build_args(parser: argparse.ArgumentParser) -> None:
         default="full",
         choices=("full", "mvp", "advisor"),
         help=(
-            "'full' validates existing behavior; "
-            "'mvp' / 'advisor' limits to review-facing outputs."
+            "'full' validates existing behavior; 'mvp' / 'advisor' limits to review-facing outputs."
         ),
     )
     parser.add_argument(

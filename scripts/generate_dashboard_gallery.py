@@ -9,7 +9,6 @@ from math import factorial
 import textwrap
 from typing import Any, Mapping
 
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import FormatStrFormatter, MaxNLocator, MultipleLocator
@@ -30,7 +29,6 @@ from quantum_optical_bus.viz_style_ieee import (  # noqa: E402
     BG_COLOR,
     AXIS_LABEL_FONT_SIZE,
     AXIS_TITLE_FONT_SIZE,
-    TEXT_COLOR,
     compact_axis_formatter,
     SERIES_BLUE,
     SERIES_ORANGE,
@@ -42,6 +40,7 @@ from quantum_optical_bus.viz_style_ieee import (  # noqa: E402
     save_ieee,
     style_axis,
 )
+
 try:
     from figstyle import (
         apply_style,
@@ -175,7 +174,9 @@ def _separate_horizontal_pair(
     left_pos = left_ax.get_position()
     right_pos = right_ax.get_position()
     left_ax.set_position([left_pos.x0 - shift / 2, left_pos.y0, left_pos.width, left_pos.height])
-    right_ax.set_position([right_pos.x0 + shift / 2, right_pos.y0, right_pos.width, right_pos.height])
+    right_ax.set_position(
+        [right_pos.x0 + shift / 2, right_pos.y0, right_pos.width, right_pos.height]
+    )
 
 
 def _set_scenario_title(fig: plt.Figure, text: str, profile: str = "web") -> None:
@@ -184,7 +185,9 @@ def _set_scenario_title(fig: plt.Figure, text: str, profile: str = "web") -> Non
     set_tab_title(fig, text, mode=profile, y=title_y, fontsize=None)
 
 
-def _note_axes(fig: plt.Figure, *, x: float = 0.08, y: float = 0.026, w: float = 0.84, h: float = 0.082) -> plt.Axes:
+def _note_axes(
+    fig: plt.Figure, *, x: float = 0.08, y: float = 0.026, w: float = 0.84, h: float = 0.082
+) -> plt.Axes:
     ax = fig.add_axes([x, y, w, h])
     ax.axis("off")
     ax.set_xlim(0, 1)
@@ -436,12 +439,11 @@ def _style_wigner_panel(
     ax.set_yticks(ticks)
 
 
-
 def scenario_vacuum(profile: str, output_dir: pathlib.Path) -> None:
     _apply_style(profile)
     # Force 15x9 so layout maps 1:1 mathematically
     fig = plt.figure(figsize=(15.0, 9.0), dpi=100)
-    
+
     try:
         from generate_prototypes import apply_prototype
     except ModuleNotFoundError:
@@ -533,6 +535,7 @@ def scenario_vacuum(profile: str, output_dir: pathlib.Path) -> None:
     )
     plt.close(fig)
 
+
 def scenario_calibration(profile: str, output_dir: pathlib.Path) -> None:
     _apply_style(profile)
     try:
@@ -548,7 +551,7 @@ def scenario_calibration(profile: str, output_dir: pathlib.Path) -> None:
 
     # Force 15x9 so layout maps 1:1 mathematically
     fig = plt.figure(figsize=(15.0, 9.0), dpi=100)
-        
+
     title = f"Scenario 2: Squeezed state ({pump:.0f} mW)"
     if profile == "paper":
         _set_scenario_title(fig, title, profile)
@@ -593,7 +596,9 @@ def scenario_calibration(profile: str, output_dir: pathlib.Path) -> None:
     probs = probs / prob_sum
     assert np.all(probs >= -1e-12), "negative probability detected in photon distribution"
     assert np.max(probs) <= 1.0 + 1e-6, "probabilities exceed 1"
-    assert abs(np.sum(probs) - 1.0) <= 5e-2, "P(n) should be normalized close to 1 in truncated basis"
+    assert abs(np.sum(probs) - 1.0) <= 5e-2, (
+        "P(n) should be normalized close to 1 in truncated basis"
+    )
 
     colors = [SERIES_BLUE if n % 2 == 0 else AXIS_COLOR for n in ns]
     ax_pn.bar(ns, probs, color=colors, edgecolor=BG_COLOR, width=0.68)
@@ -643,6 +648,7 @@ def scenario_calibration(profile: str, output_dir: pathlib.Path) -> None:
     )
     plt.close(fig)
 
+
 def scenario_decoherence(profile: str, output_dir: pathlib.Path) -> None:
     _apply_style(profile)
     try:
@@ -664,7 +670,9 @@ def scenario_decoherence(profile: str, output_dir: pathlib.Path) -> None:
     intrinsic_var_x = 0.5 * np.exp(-2.0 * r)
     obs_var_x = eta * intrinsic_var_x + (1.0 - eta) * 0.5
     obs_loss_db = -10.0 * np.log10(max(obs_var_x / 0.5, np.finfo(float).eps))
-    assert obs_loss_db <= intrinsic_sq_db + 1e-9, "Observed squeezing must not exceed intrinsic squeezing"
+    assert obs_loss_db <= intrinsic_sq_db + 1e-9, (
+        "Observed squeezing must not exceed intrinsic squeezing"
+    )
 
     title = "Scenario 3: Decoherence + loss"
     footnote = (
@@ -677,7 +685,7 @@ def scenario_decoherence(profile: str, output_dir: pathlib.Path) -> None:
     fig = plt.figure(figsize=(15.0, 9.0), dpi=100)
     if profile == "paper":
         _set_scenario_title(fig, title, profile)
-        
+
     boxes = apply_prototype(
         fig,
         "dashboard_decoherence",
@@ -693,7 +701,7 @@ def scenario_decoherence(profile: str, output_dir: pathlib.Path) -> None:
     _style_wigner_panel(
         ax_w_pure,
         (W_pure, r, intrinsic_sq_db),
-        f"Wigner: loss = 0 dB",
+        "Wigner: loss = 0 dB",
     )
     _style_wigner_panel(
         ax_w_loss,
@@ -739,15 +747,6 @@ def scenario_decoherence(profile: str, output_dir: pathlib.Path) -> None:
     ax_var.grid(axis="y", which="major", alpha=0.30)
     ax_var.grid(axis="y", which="minor", alpha=0.12, linestyle=":")
 
-    summary_pairs = [
-        ("Pump power", f"{pump:.1f} mW"),
-        ("Squeezing parameter", f"r = {r:.4f}"),
-        ("Total transmissivity eta", f"{eta:.4f}"),
-        ("Intrinsic (pre-loss)", f"{intrinsic_sq_db:.2f} dB"),
-        ("Observed (post-loss)", f"{obs_loss_db:.2f} dB"),
-    ]
-    summary = " | ".join(f"{k}: {v}" for k, v in summary_pairs)
-
     _run_style_web_and_save(
         fig,
         output_dir,
@@ -773,6 +772,8 @@ def scenario_decoherence(profile: str, output_dir: pathlib.Path) -> None:
         },
     )
     plt.close(fig)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -805,6 +806,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
