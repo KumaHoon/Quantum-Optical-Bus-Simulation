@@ -174,14 +174,14 @@ See: `docs/ROADMAP.md`
 
 ```mermaid
 flowchart LR
-  User[Researcher / Operator] --> UI[Streamlit dashboard<br/>calibration_app.py]
-  UI --> Core[quantum_optical_bus<br/>Python package]
+  User["Researcher / Operator"] --> UI["Streamlit dashboard<br/>calibration_app.py"]
+  UI --> Core["quantum_optical_bus<br/>Python package"]
 
-  Core --> SF[Strawberry Fields<br/>Gaussian backend]
+  Core --> SF["Strawberry Fields<br/>Gaussian backend"]
   Core -.->|optional| Meep["Meep (optional)"]
 
   Core --> UI
-  Scripts[scripts/*] --> Assets[assets/web/* and assets/paper/* (PNG/GIF)]
+  Scripts["scripts/*"] --> Assets["assets/web/* and assets/paper/* (PNG/GIF)"]
 ```
 
 **Boundary note:** in the current MVP, the Meep path is **not** used to compute `r`; it is a hardware-view placeholder and a future integration hook.
@@ -190,23 +190,23 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  UI[calibration_app.py] --> Map[interface.py<br/>P -> r]
-  UI --> Units[units.py<br/>loss_dB -> T]
+  UI["calibration_app.py"] --> Map["interface.py<br/>P -> r"]
+  UI --> Units["units.py<br/>loss_dB -> T"]
 
-  Map --> SM[quantum.py<br/>run_single_mode]
+  Map --> SM["quantum.py<br/>run_single_mode"]
   Units --> SM
   SM --> UI
 
-  Map --> MM[multimode.py<br/>run_multimode]
+  Map --> MM["multimode.py<br/>run_multimode"]
   Units --> MM
   MM --> UI
 
-  Map --> Topo[tdm_topology.py<br/>simulate_topology]
+  Map --> Topo["tdm_topology.py<br/>simulate_topology"]
   Units --> Topo
   Topo --> UI
 
-  UI --> Est[estimation.py<br/>fit_eta_and_loss]
-  Est --> Ctrl[control.py<br/>latency + drift]
+  UI --> Est["estimation.py<br/>fit_eta_and_loss"]
+  Est --> Ctrl["control.py<br/>latency + drift"]
   Ctrl --> UI
 
   UI -.->|optional| HW["hardware.py<br/>Meep / analytic mock"]
