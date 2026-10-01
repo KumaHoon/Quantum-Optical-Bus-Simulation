@@ -47,9 +47,18 @@ Open [localhost:8501](http://localhost:8501) after starting either option.
 
 ## Model and limitations
 
-- Source squeezing follows the phenomenological model `r = eta * sqrt(P)`, with `P` in mW. The coefficient `eta` is not derived from hardware geometry or Meep.
-- Optical loss uses a Gaussian pure-loss channel: `T = 10^(-loss_db / 10)`, with vacuum quadrature variance `0.5`.
-- Control and drift results are simulations. This project does not demonstrate an experimental quantum computer, hardware-in-the-loop operation, or fault-tolerant computation.
+- Source squeezing follows the phenomenological calibration model `r = eta * sqrt(P)`, with `P` in mW. The square-root pump-power scaling is consistent with standard squeezed-light / optical-parametric-amplifier models; the coefficient `eta` is an empirical calibration parameter and is not derived from hardware geometry or Meep [[1]](#references-for-model-equations).
+- Squeezed-vacuum quadrature variance follows the standard scaling `V_sq ∝ exp(-2r)` [[1,2]](#references-for-model-equations).
+- Optical attenuation is converted from decibels to power transmissivity as `T = 10^(-loss_db / 10)`; the simulation applies this transmissivity through a Gaussian pure-loss channel [[1]](#references-for-model-equations). The vacuum quadrature variance is set to `0.5` as the normalization convention used in this repository.
+- Control and drift results are simulations. Latency, quantization, and drift ranges are engineering sweep assumptions rather than experimentally identified hardware parameters.
+- This project does not demonstrate an experimental quantum computer, hardware-in-the-loop operation, or fault-tolerant computation.
+
+### References for model equations
+
+1. WACQT Laboratory, *Squeezing Lab Manual* — squeezed-light calibration model, pump-power dependence, quadrature variance, and optical attenuation conventions: <https://indico.fysik.su.se/event/9433/contributions/14609/attachments/6285/8488/Squeezing_Lab_Manual_WACQT_Lab%20%281%29.pdf>
+2. R.-K. Lee, *Quantum Optics: Squeezed States* — squeezed-vacuum quadrature variance scaling `V ∝ exp(±2r)`: <https://mx.nthu.edu.tw/~rklee/files/QO-note-squeezed.pdf>
+
+The longer bibliography and documentation notes are collected in [`docs/REFERENCES.md`](docs/REFERENCES.md).
 
 ## Reproduce results
 
